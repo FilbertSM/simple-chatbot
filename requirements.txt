@@ -1,0 +1,27 @@
+# Web Framework
+uvicorn[standard]
+streamlit
+loguru
+
+# LangChain & Ecosystem
+langchain
+langchain-community
+langchain-core
+langchain-ollama
+langchain-chroma
+
+# Vectorstore
+chromadb
+
+# PDF Parsing
+PyPDF # backend for PyPDFLoader via langchain_community
+pandas
+
+# Environment Variables
+python-dotenv
+
+# Typing & Utilities
+pydantic
+
+# To install the requirements
+# pip install -r requirements.txt

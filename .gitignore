@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.streamlit/
+node_modules/
+chroma_store/
+uploaded_pdfs
