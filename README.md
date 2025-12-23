@@ -35,8 +35,6 @@ Key capabilities:
 
 Notes: the project currently forces `ALWAYS RESPONSE USING BAHASA INDONESIA` in the prompt template in `engine.py`.
 
----
-
 ## Environment & Secrets
 
 Required environment variables (set via OS or `.env`):
