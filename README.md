@@ -14,7 +14,6 @@ Key capabilities:
 - RAG in tutoring phase using Chroma
 - Extensible role definitions stored in `engine.py`'s `DUMMY_DB`
 
----
 
 ## Repo layout
 
