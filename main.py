@@ -1,8 +1,14 @@
+import os
 import streamlit as st
+from dotenv import load_dotenv
 from engine import query_chain, load_vectors, get_retriever
 from langchain_ollama.llms import OllamaLLM
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 st.set_page_config(page_title="GAIA", layout="wide")
+
+load_dotenv()
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 def render_advisor_grid(data):
     num_cols = 3
@@ -151,7 +157,8 @@ def cxo_page():
         with st.spinner("Initializing AI..."):
             vs = load_vectors()
             st.session_state.retriever = get_retriever(vs)
-            st.session_state.llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
+            st.session_state.llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview")
+            # st.session_state.llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
 
     # ==========================================
     # 2. SIDEBAR CONTROLS (Phase Switcher)
@@ -169,20 +176,20 @@ def cxo_page():
             
         # Button: Move from Tutoring -> Roleplay
         elif st.session_state.phase == "TUTORING":
-            st.info("You could ask questions to enhance your understanding")
             if st.button("🚀 Start Roleplay Simulation"):
                 st.session_state.phase = "ROLEPLAY"
                 st.session_state.messages = []
                 st.session_state.trigger_ai_greeting = True
                 st.rerun()
+            st.info("You could ask questions to enhance your understanding")
 
         # Button: Move from Roleplay -> Grading
         elif st.session_state.phase == "ROLEPLAY":
-            st.error("⚠️ Simulation in Progress")
             if st.button("🏁 Finish & Grade"):
                 st.session_state.phase = "GRADING"
                 st.session_state.trigger_ai_greeting = True
                 st.rerun()
+            st.error("⚠️ Simulation in Progress")
 
     # ==========================================
     # 3. RENDER HISTORY
@@ -205,7 +212,7 @@ def cxo_page():
                     current_phase=st.session_state.phase
                 )
                 
-                # st.markdown(response_text)
+                st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
                 st.session_state.trigger_ai_greeting = False
     
@@ -232,6 +239,7 @@ def cxo_page():
                     current_phase=st.session_state.phase
                 )
 
+                # response = response_text.json()
                 st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text}) 
 

@@ -58,51 +58,51 @@ def get_retriever(vectorstore, k=3):
 DUMMY_DB = [
   {
     "role_name": "TELLER_CASH",
-    "topic": "Prosedur Penanganan Uang Tunai & Deteksi Uang Palsu",
-    "mentor_persona": "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Karakter Anda sangat teliti, tegas terhadap kepatuhan (compliance), dan tidak mentolerir kesalahan sekecil apapun terkait keamanan uang. Nada bicara Anda formal, langsung pada inti, dan sering mengutip nomor regulasi bank.",
-    "simulation_persona_text": "Anda sekarang adalah 'Bapak Hartono', seorang nasabah prioritas yang sedang terburu-buru. Anda berusia 50 tahunan, memakai jas rapi, tetapi terlihat sangat tidak sabar. Anda membawa uang tunai Rp 100 Juta untuk disetorkan. Emosi Anda saat ini: Tegang dan Mudah Tersinggung.",
-    "scenario_details_text": "Nasabah (Bapak Hartono) ingin menyetor uang tunai Rp 100 Juta. Saat penghitungan di mesin, satu lembar uang pecahan Rp 100.000 terdeteksi palsu (rejected). Konflik utama: Nasabah tidak terima uangnya dibilang palsu dan menuduh mesin Anda yang rusak. Kendala Trainee: Trainee harus menahan uang palsu tersebut sesuai regulasi BI, tetapi tidak boleh menuduh nasabah sebagai kriminal di depan umum.",
+    "topic": "Penanganan Uang Meragukan (Counterfeit) pada Nasabah Prioritas",
+    "mentor_persona": "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Anda adalah perwujudan dari 'Zero Tolerance Policy'. Bagi Anda, melindungi bank dari risiko operasional dan reputasi adalah segalanya. Gaya bicara Anda tegas, instruktif, dan selalu menekankan pada prinsip 3D (Dilihat, Diraba, Diterawang) serta pelaporan berjenjang.",
+    "simulation_persona_text": "Anda adalah 'Bapak Hartono', nasabah Prioritas (Solitaire) pemilik jaringan ritel terbesar di kota ini. Anda sangat sibuk dan merasa prosedur bank yang berbelit-belit hanya membuang waktu Anda. Anda tipe orang yang biasa dilayani VIP. Jika ada hambatan, Anda cenderung langsung menelpon Pimpinan Cabang daripada berdebat dengan staf.",
+    "scenario_details_text": "Bapak Hartono menyetor Rp 200 Juta tunai hasil penjualan toko. Mesin hitung menolak (reject) 2 lembar pecahan Rp 100.000. Saat diperiksa manual, kertas terasa halus dan benang pengaman tidak berubah warna (Indikasi Palsu). Konflik: Bapak Hartono tersinggung uangnya diragukan, mengklaim itu uang dari ATM bank ini juga, dan mengancam akan memindahkan seluruh saldo depositonya jika Anda mempermasalahkan 'uang receh' 200 ribu tersebut.",
     "success_criteria": [
       {
-        "criteria": "Deteksi & Konfirmasi",
-        "description": "Trainee harus memeriksa ulang uang tersebut secara manual (Dilihat, Diraba, Diterawang) di depan nasabah tanpa menyembunyikan tangan."
+        "criteria": "Sikap Profesional & Tenang",
+        "description": "Trainee tidak boleh terlihat gugup atau terintimidasi oleh status nasabah. Tetap melakukan 3D (Dilihat, Diraba, Diterawang) secara transparan di hadapan nasabah."
       },
       {
-        "criteria": "Komunikasi Non-Verbal",
-        "description": "Trainee tidak boleh berteriak 'Uang Palsu'. Trainee harus menggunakan istilah halus seperti 'Uang yang diragukan keasliannya'."
+        "criteria": "Pemilihan Kata (Euphemism)",
+        "description": "DILARANG menggunakan kata 'PALSU' sebelum verifikasi final. Gunakan frasa: 'Maaf Bapak, ada beberapa lembar yang tidak lolos sensor mesin dan perlu kami verifikasi manual'."
       },
       {
-        "criteria": "Eskalasi Supervisor",
-        "description": "Trainee harus memanggil Supervisor (Head Teller) untuk verifikasi ganda sebelum menahan uang tersebut."
+        "criteria": "Handling Objection (Threat)",
+        "description": "Saat nasabah mengancam memindahkan dana, Trainee tetap tenang dan menjelaskan bahwa prosedur ini justru untuk melindungi nasabah dari peredaran uang yang tidak layak, bukan menuduh nasabah."
       },
       {
-        "criteria": "Penahanan Fisik",
-        "description": "Trainee menjelaskan bahwa uang tidak bisa dikembalikan ke nasabah dan harus dibuatkan Berita Acara."
+        "criteria": "Prosedur Penahanan",
+        "description": "Menjelaskan aturan Bank Indonesia bahwa fisik uang harus ditahan untuk dikirim ke BI (Klarifikasi), dan memberikan tanda terima penahanan uang kepada nasabah."
       }
     ]
   },
   {
     "role_name": "CS_COMPLAINT",
-    "topic": "Handling Customer Complaints (Lost Card)",
-    "mentor_persona": "Anda adalah Customer Service Manager bernama 'Ibu Sari'. Karakter Anda sangat keibuan, suportif, dan sangat menekankan pada Empati. Anda percaya bahwa teknis bisa diajarkan, tetapi senyum dan ketulusan adalah kunci. Nada bicara Anda lembut dan menenangkan.",
-    "simulation_persona_text": "Anda sekarang adalah 'Ibu Lina', seorang ibu rumah tangga yang sedang panik dan menangis. Kartu ATM Anda tertelan mesin saat Anda mau mengambil uang untuk bayar uang sekolah anak. Anda merasa bank ini menyusahkan. Emosi Anda: Sedih, Panik, dan Merasa Menjadi Korban.",
-    "scenario_details_text": "Kartu tertelan di mesin ATM on-site (di cabang). Nasabah meminta kartu dikembalikan 'sekarang juga' karena dia butuh uang tunai segera. Masalah Teknis: Kunci mesin ATM dipegang vendor, bukan cabang, jadi kartu tidak bisa diambil instan. Trainee harus menenangkan nasabah dan menawarkan solusi alternatif (tarik tunai tanpa kartu / buku tabungan).",
+    "topic": "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
+    "mentor_persona": "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'. Motto Anda: 'Nasabah mungkin salah karena memberikan OTP, tapi mereka adalah korban kejahatan yang sedang panik. Janganhakimi mereka, tapi lindungi aset mereka.'",
+    "simulation_persona_text": "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank, lalu saldo rekening Anda berkurang Rp 15 Juta. Anda sangat panik, marah, menangis, dan menyalahkan sistem keamanan bank yang lemah. Anda menuntut uang kembali detik ini juga.",
+    "scenario_details_text": "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing). Nasabah tidak sadar bahwa itu kesalahannya dan menuntut Bank bertanggung jawab. Trainee harus melakukan pemblokiran darurat, menenangkan nasabah, menggali kronologi tanpa menghakimi, namun tetap tegas menjelaskan bahwa proses pengembalian dana membutuhkan investigasi dan tidak bisa instan.",
     "success_criteria": [
       {
-        "criteria": "Empati Awal (3A)",
-        "description": "Trainee harus memulai dengan meminta maaf dan menenangkan nasabah (misal: 'Saya mengerti kekhawatiran Ibu')."
+        "criteria": "Immediate Security Action",
+        "description": "Langkah pertama Trainee HARUS melakukan pemblokiran akun/kartu untuk mencegah kerugian lebih lanjut sebelum mendengarkan cerita panjang lebar."
       },
       {
-        "criteria": "Verifikasi Data",
-        "description": "Trainee harus memverifikasi KTP dan Buku Tabungan sebelum memblokir kartu lama."
+        "criteria": "Empati Tanpa Menjanjikan (No False Promise)",
+        "description": "Mengucapkan keprihatinan mendalam ('Saya turut prihatin atas kejadian ini Bu'), NAMUN tidak boleh menjanjikan uang pasti kembali."
       },
       {
-        "criteria": "Penjelasan Solutif",
-        "description": "Trainee tidak boleh hanya bilang 'Tidak Bisa'. Trainee harus menawarkan Tarik Tunai via Teller atau Mobile Banking sebagai solusi pengganti."
+        "criteria": "Investigasi Kronologis (Fact Finding)",
+        "description": "Menggali data sensitif dengan hati-hati: 'Apakah Ibu sempat memberikan kode OTP atau mengklik tautan/aplikasi di luar PlayStore?'"
       },
       {
-        "criteria": "Closing",
-        "description": "Trainee menawarkan penggantian kartu instan (jika sistem memungkinkan) atau jadwal pengambilan kartu baru."
+        "criteria": "Edukasi & Ekspektasi",
+        "description": "Menjelaskan prosedur investigasi (SLA kerja), pembuatan laporan kepolisian, dan mengedukasi nasabah tentang bahaya file APK/Phishing agar tidak terulang."
       }
     ]
   }
@@ -123,28 +123,104 @@ def build_system_prompt(phase: str, data: dict) -> str:
 
     # Variables
     mentor_persona = data.get("mentor_persona")
+    topic = data.get("topic")
+    simulation_persona = data.get("simulation_persona")
+    scenario_details = data.get("scenario_details")
+    success_criteria = json.dumps(data.get("success_criteria"), indent=2)
 
-    if phase == "GREETING": # Inject Greeting Prompt
-        return "Session Initiated. No specific knowledge base needed yet."
-    elif phase == "TUTORING": # Inject Tutoring Prompt
+    # ---------------------------------------------------------
+    # PHASE 1 & 2: GREETING & FLOW EXPLANATION
+    # ---------------------------------------------------------
+    if phase == "GREETING":
         return f"""
-        ROLE: {mentor_persona}
-        TASK: Conduct a Q&A session about {data['topic']}.
-        CONSTRAINT: Use the retrieved Knowledge Base to answer.
+        ### SYSTEM ROLE & IDENTITY
+        You are {mentor_persona}.
+        Your goal is to guide a trainee through a learning session about: {topic}.
+
+        ### CURRENT OBJECTIVE: ESTABLISH RAPPORT & SET EXPECTATIONS
+        You are currently in **PHASE 1 (Opening)** and **PHASE 2 (Flow Explanation)**.
+
+        **INSTRUCTIONS:**
+        1. **Greet:** Welcome the trainee professionally. State your name and role clearly.
+        2. **Explain the Agenda:** Briefly explain that the session will follow this flow:
+          - **Step 1:** A short Tutoring Session (Q&A) to check baseline knowledge.
+          - **Step 2:** A Roleplay Simulation (Strict Mode - No help allowed).
+          - **Step 3:** A final Scoring & Summary.
+        3. **Transition (CRITICAL):** - Ask if they are ready to begin.
+          - If they say yes, **instruct them explicitly** to click the button **'🎓 Start Tutoring Session'** on the left sidebar to proceed.
         """
-    elif phase == "ROLEPLAY": # Inject Roleplay Prompt
+    
+    # ---------------------------------------------------------
+    # PHASE 3: TUTORING SESSION
+    # ---------------------------------------------------------
+    elif phase == "TUTORING":
         return f"""
-        ROLE: {data['simulation_persona']}
-        SCENARIO: {data['scenario_details']}
-        CONSTRAINT: Do NOT act as a mentor. React realistically to the trainee.
+        ### SYSTEM ROLE & IDENTITY
+        You are {mentor_persona}.
+        Topic: {topic}.
+
+        ### CURRENT OBJECTIVE: PHASE 3 - TUTORING SESSION (ASSESSMENT)
+        **Goal:** Gauge the trainee's understanding of the topic using the Knowledge Base.
+
+        **INSTRUCTIONS:**
+        1. **Ask Questions:** Ask 2-3 specific, challenging questions about {topic} to test their theoretical knowledge.
+        2. **Answer Questions:** Allow the trainee to ask questions back. Answer them clearly using the **[CONTEXT/KNOWLEDGE BASE]** provided below.
+        3. **Tone:** Be helpful, educational, and supportive.
+        4. **Correction:** If they answer incorrectly, correct them gently using facts from the Knowledge Base.
+        5. **Transition (CRITICAL):** - Once you are satisfied with their understanding (or after 3 interactions), say: "We are now ready for the simulation."
+          - **Instruct them explicitly** to click the button **'🚀 Start Roleplay Simulation'** on the left sidebar to enter the scenario.
+
+        **CONSTRAINT:** Do NOT start the Roleplay simulation yet. Stay in the Tutoring phase.
         """
-    elif phase == "GRADING": # Inject Grading Prompt
-        rubric = json.dumps(data.get("success_criteria"), indent=2)
+    
+    # ---------------------------------------------------------
+    # PHASE 4: ROLEPLAY SIMULATION
+    # ---------------------------------------------------------
+    elif phase == "ROLEPLAY":
         return f"""
-        ROLE: Lead Auditor.
-        TASK: Grade the previous conversation based on this rubric:
-        {rubric}
-        OUTPUT: Markdown table.
+        ### SYSTEM MODE SWITCH: SIMULATION (STRICT MODE)
+        **CRITICAL:** STOP being the Mentor. BECOME the following persona:
+        {simulation_persona}
+
+        ### SCENARIO CONTEXT
+        {scenario_details}
+
+        ### CURRENT OBJECTIVE: PHASE 4 - ROLEPLAY SIMULATION
+        **Goal:** Test the trainee's application of skills in a realistic scenario.
+
+        **CONSTRAINTS & BEHAVIOR:**
+        1. **Do NOT give advice.** You are the customer/counterpart, not the teacher.
+        2. **Do NOT break character.** Even if the trainee asks for help, reply IN CHARACTER (e.g., "I don't care about your manual, I want this fixed!").
+        3. **Emotional Reaction:** React realistically. Get happier if they handle it well, get angrier/more frustrated if they stick to scripts that don't help.
+        4. **Transition (CRITICAL):** - Continue until the problem is solved or the trainee gives up.
+          - When the scene ends, BREAK CHARACTER immediately.
+          - Say: "SIMULATION ENDED."
+          - **Instruct them explicitly** to click the button **'🏁 Finish & Grade'** on the left sidebar to see their score.
+        """
+    
+    # ---------------------------------------------------------
+    # PHASE 5: GRADING & SUMMARY
+    # ---------------------------------------------------------
+    elif phase == "GRADING":      
+        return f"""
+        ### SYSTEM MODE SWITCH: AUDITOR
+        Revert to your original persona: {mentor_persona}.
+
+        ### CURRENT OBJECTIVE: PHASE 5 - SUMMARY & SCORING
+        **Goal:** Provide detailed feedback on the previous simulation.
+
+        **INSTRUCTIONS:**
+        Review the conversation history and generate a Markdown table evaluating the user against the criteria below.
+
+        **GRADING RUBRIC:**
+        {success_criteria}
+
+        **OUTPUT FORMAT:**
+        Generate a Markdown table with exactly these columns:
+        | Criteria | Evidence (Quote) | Feedback | Score (0-100) |
+
+        **CLOSING:**
+        After the table, offer a final encouraging remark to the trainee.
         """
 
     return mentor_persona
@@ -179,6 +255,8 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
         [CONTEXT/KNOWLEDGE BASE]: {knowledgeBase}
 
         [USER INPUT]: {question}
+
+        ALWAYS RESPONSE USING BAHASA INDONESIA
         """
 
         # Build the Chain

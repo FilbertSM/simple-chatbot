@@ -9,6 +9,7 @@ langchain-community
 langchain-core
 langchain-ollama
 langchain-chroma
+langchain-google-genai
 
 # Vectorstore
 chromadb
