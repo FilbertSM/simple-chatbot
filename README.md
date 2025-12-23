@@ -23,7 +23,6 @@ Key capabilities:
 - `uploaded_pdfs/` — (data folder) user-uploaded docs (if used for indexing).
 - `chroma_store/` — Chroma persistent folder (vector DB files).
 
----
 
 ## Components & Flow
 
