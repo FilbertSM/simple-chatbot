@@ -2,7 +2,7 @@
 
 Comprehensive documentation for IT / DevOps to deploy, configure, and maintain the CXO-GAIA project.
 
----
+
 
 ## Overview
 
