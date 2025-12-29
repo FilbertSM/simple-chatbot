@@ -155,7 +155,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
           - **Step 2:** A Roleplay Simulation (Strict Mode - No help allowed).
           - **Step 3:** A final Scoring & Summary.
         3. **Transition (CRITICAL):** - Ask if they are ready to begin.
-          - If they say yes, **instruct them explicitly** to click the button **'🎓 Start Tutoring Session'** below of this message to proceed.
+          - If they say yes, **instruct them explicitly** to click the button **'🎓 Start Tutoring Session'** below to proceed.
         """
     
     # ---------------------------------------------------------
@@ -176,7 +176,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
         3. **Tone:** Be helpful, educational, and supportive.
         4. **Correction:** If they answer incorrectly, correct them gently using facts from the Knowledge Base.
         5. **Transition (CRITICAL):** - Once you are satisfied with their understanding (or after 3 interactions), say: "We are now ready for the simulation."
-          - **Instruct them explicitly** to click the button **'🚀 Start Roleplay Simulation'** below of this message to enter the scenario.
+          - **Instruct them explicitly** to click the button **'🚀 Start Roleplay Simulation'** below to enter the scenario.
 
         **CONSTRAINT:** Do NOT start the Roleplay simulation yet. Stay in the Tutoring phase.
         """
@@ -203,7 +203,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
         4. **Transition (CRITICAL):** - Continue until the problem is solved or the trainee gives up.
           - When the scene ends, BREAK CHARACTER immediately.
           - Say: "SIMULATION ENDED."
-          - **Instruct them explicitly** to click the button **'🏁 Finish & Grade'** below of this message to see their score.
+          - **Instruct them explicitly** to click the button **'🏁 Finish & Grade'** below to see their score.
         """
     
     # ---------------------------------------------------------
