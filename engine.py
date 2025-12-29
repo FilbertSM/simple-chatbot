@@ -234,7 +234,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
     return mentor_persona
 
 # Chain Query
-def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: str):
+def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: str, chat_history: list):
     """
     Orchestrates the entire flow: Data -> Prompt -> RAG -> LLM
     """
@@ -247,6 +247,9 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
 
         # Build Dynamic System Prompt
         system_instructions = build_system_prompt(current_phase, role_data)
+
+        # Update History
+        history_text = format_chat_history(chat_history)
 
         # Optimization: Only retrieve docs in 'TUTORING'. In 'ROLEPLAY', context is the scenario.
         if current_phase == "TUTORING":
@@ -262,6 +265,8 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
 
         [CONTEXT/KNOWLEDGE BASE]: {knowledgeBase}
 
+        [CHAT HISTORY]: {history}
+
         [USER INPUT]: {question}
 
         ALWAYS RESPONSE USING BAHASA INDONESIA
@@ -272,7 +277,7 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
         chain = prompt | llm | StrOutputParser()
 
         # Invoke
-        result = chain.invoke({"role_instruction": system_instructions, "knowledgeBase": knowledge_base_content, "question": user_input})
+        result = chain.invoke({"role_instruction": system_instructions, "knowledgeBase": knowledge_base_content, "history": history_text, "question": user_input})
         return result
     except Exception as e:
         logger.exception("Error querying the chain")

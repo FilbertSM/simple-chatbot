@@ -170,10 +170,16 @@ def cxo_page():
     # 3. AUTO-TRIGGER (AI Speaks First)
     # ==========================================
 
-    # Optional minimal sidebar
+    # Sidebar
     with st.sidebar:
         st.title("Welcome, User")
         st.caption(f"Mode: {st.session_state.phase}")
+        if st.button(
+            label = "Logout",
+            type = "primary"
+        ):
+            st.text("Logout")
+
     role_id = "CS_COMPLAINT" # Change the variable into the respective role
     if st.session_state.get("trigger_ai_greeting"):
         with st.chat_message("assistant"):
@@ -183,7 +189,8 @@ def cxo_page():
                     llm=st.session_state.llm,
                     user_input="[SYSTEM_TRIGGER_START]",
                     role_id=role_id, 
-                    current_phase=st.session_state.phase
+                    current_phase=st.session_state.phase,
+                    chat_history=st.session_state.messages
                 )
                 
                 st.markdown(response_text)
@@ -210,7 +217,8 @@ def cxo_page():
                     llm=st.session_state.llm,
                     user_input=user_input,
                     role_id=role_id,
-                    current_phase=st.session_state.phase
+                    current_phase=st.session_state.phase,
+                    chat_history=st.session_state.messages
                 )
 
                 # response = response_text.json()
