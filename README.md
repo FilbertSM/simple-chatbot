@@ -1,8 +1,6 @@
 # CXO-GAIA — Roleplay & Tutor Chatbot
 
-Comprehensive documentation for IT / DevOps to deploy, configure, and maintain the CXO-GAIA project.
-
-
+Comprehensive documentation for IT / DevOps to configure the CXO-GAIA project.
 
 ## Overview
 
@@ -14,15 +12,13 @@ Key capabilities:
 - RAG in tutoring phase using Chroma
 - Extensible role definitions stored in `engine.py`'s `DUMMY_DB`
 
-
 ## Repo layout
 
 - `main.py` — Streamlit app, UI, session state, and phase controls.
 - `engine.py` — Core orchestration: role DB, system prompt builder, `query_chain`, vectorestore loading, and retriever utils.
-- `requirements.txt` — Python dependencies (install with pip).
+- `requirements.txt` — Python dependencies.
 - `uploaded_pdfs/` — (data folder) user-uploaded docs (if used for indexing).
 - `chroma_store/` — Chroma persistent folder (vector DB files).
-
 
 ## Components & Flow
 
@@ -46,7 +42,7 @@ Required environment variables (set via OS or `.env`):
 Store secrets securely. On Windows you can set a user environment variable:
 
 ```powershell
-setx GEMINI_API_KEY "your_api_key_here"
+set GEMINI_API_KEY "your_api_key_here"
 ```
 
 Or create a `.env` file with:
@@ -54,8 +50,6 @@ Or create a `.env` file with:
 ```
 GEMINI_API_KEY=your_api_key_here
 ```
-
----
 
 ## Dependencies
 
@@ -66,14 +60,6 @@ python -m pip install -r requirements.txt
 ```
 
 If you want to use Google Gemini instead of Ollama, install the official Google generative AI client:
-
-```bash
-python -m pip install google-generative-ai
-```
-
-Optional: `langchain` and `langchain_ollama` are referenced; keep them in `requirements.txt` as needed by project.
-
----
 
 ## Running Locally (development)
 
@@ -87,70 +73,12 @@ streamlit run main.py
 
 Port: Streamlit chooses an available port (default 8501). Open the URL shown in the terminal.
 
----
-
-## LLM Configuration
-
-The repository contains references to two LLM approaches:
-
-- Ollama (local Ollama server): `OllamaLLM` (used in `engine.py` and older `main.py` variant).
-- Google Gemini via `langchain_google_genai.ChatGoogleGenerativeAI` (used in `main.py` in current workspace snapshot).
-
-engine.py currently creates `OllamaEmbeddings` and an `OllamaLLM` instance at module import time. `main.py` creates the runtime `st.session_state.llm` (either `OllamaLLM` or `ChatGoogleGenerativeAI`).
-
-Switching to Gemini (recommended steps):
-
-1. Install `google-generative-ai`.
-2. Set `GEMINI_API_KEY` (see above).
-3. Update the code that sets `st.session_state.llm` to use the LangChain Gemini wrapper or a custom adapter that matches the chain's expected interface.
-
-Minimal example adapter (non-LangChain) to wrap Gemini chat completions:
-
-```python
-import os
-import google.generativeai as genai
-
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-
-class GeminiAdapter:
-    def __init__(self, model='gemini-3.5-pro'):
-        self.model = model
-
-    def __call__(self, prompt_text: str) -> str:
-        # Minimal mapping: returns plain text response
-        resp = genai.chat.completions.create(model=self.model, messages=[{'author': 'user', 'content': prompt_text}])
-        return resp.choices[0].message.content
-
-# In main.py, set:
-# st.session_state.llm = GeminiAdapter(model='gemini-3.5-pro')
-```
-
-Adapting to LangChain: if `llm` must be a LangChain LLM, prefer `langchain`'s Google/Vertex integrations or `langchain_google_genai.ChatGoogleGenerativeAI` which the code already imports.
-
-Important: `engine.py` builds a prompt template and then does `prompt | llm | StrOutputParser()`. That composition expects the `llm` to be a LangChain-compatible component. If using a custom adapter, adapt `engine.py` to call `llm(prompt_text)` directly and bypass the operator pipeline.
-
-Example small change in `engine.py` to support non-LangChain LLMs (conceptual):
-
-```python
-# Build prompt_text from prompt.invoke(...)
-prompt_text = prompt.format(role_instruction=system_instructions, knowledgeBase=knowledge_base_content, question=user_input)
-if hasattr(llm, '__call__'):
-    raw = llm(prompt_text)
-else:
-    # existing LangChain pipeline
-    raw = chain.invoke({...})
-```
-
----
-
 ## Vectors & Knowledge Base
 
 - Vector store persist dir: `PERSIST_DIR` (default `./chroma_store`). `engine.load_vectors()` constructs a `Chroma` instance that uses `OllamaEmbeddings` at module import.
 - To rebuild or update vectors: add/upload documents into `uploaded_pdfs/` and run your embedding/indexing routine (not included in repo — implement a script to ingest and call `Chroma` insert APIs).
 
----
-
-## Roles & Scenario Data
+## Data Schema
 
 Role definitions live in `engine.py` as `DUMMY_DB` (an in-memory list of role records). Each entry contains fields like:
 
@@ -215,14 +143,6 @@ This section documents the main functions in `engine.py` and `main.py` so IT and
     - Render history (`st.session_state.messages`) with `st.chat_message`.
     - Auto-trigger system message using `query_chain(..., user_input='[SYSTEM_TRIGGER_START]')` when `trigger_ai_greeting` is true.
     - Handle user input (`st.chat_input`) and append both user and assistant messages to history.
-
-### Extension points & operational notes
-
-- Replace `DUMMY_DB` with a persistent store and update `fetch_roleplay_data` accordingly.
-- Provide a clear `LLMAdapter` interface when switching backends (Ollama / Gemini / other): prefer a callable `__call__(prompt_text)` or LangChain-compatible wrapper.
-- Add an ingestion script to tokenize/extract `/uploaded_pdfs` and index into Chroma using the same embeddings used by `load_vectors()`.
-
----
 
 ## System-Only (No User Input) Triggers
 

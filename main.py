@@ -161,45 +161,19 @@ def cxo_page():
             # st.session_state.llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
 
     # ==========================================
-    # 2. SIDEBAR CONTROLS (Phase Switcher)
-    # ==========================================
-    with st.sidebar:
-        st.header(f"Current Mode: {st.session_state.phase}")
-
-        # Button: Move from Greeting -> Tutoring
-        if st.session_state.phase == "GREETING":
-            if st.button("🎓 Start Tutoring Session"):
-                st.session_state.phase = "TUTORING"
-                # st.session_state.messages = []
-                st.session_state.trigger_ai_greeting = True
-                st.rerun()
-            
-        # Button: Move from Tutoring -> Roleplay
-        elif st.session_state.phase == "TUTORING":
-            if st.button("🚀 Start Roleplay Simulation"):
-                st.session_state.phase = "ROLEPLAY"
-                st.session_state.messages = []
-                st.session_state.trigger_ai_greeting = True
-                st.rerun()
-            st.info("You could ask questions to enhance your understanding")
-
-        # Button: Move from Roleplay -> Grading
-        elif st.session_state.phase == "ROLEPLAY":
-            if st.button("🏁 Finish & Grade"):
-                st.session_state.phase = "GRADING"
-                st.session_state.trigger_ai_greeting = True
-                st.rerun()
-            st.error("⚠️ Simulation in Progress")
-
-    # ==========================================
-    # 3. RENDER HISTORY
+    # 2. RENDER HISTORY
     # ==========================================
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).markdown(msg["content"])
 
     # ==========================================
-    # 4. AUTO-TRIGGER (AI Speaks First)
+    # 3. AUTO-TRIGGER (AI Speaks First)
     # ==========================================
+
+    # Optional minimal sidebar
+    with st.sidebar:
+        st.title("Welcome, User")
+        st.caption(f"Mode: {st.session_state.phase}")
     role_id = "CS_COMPLAINT" # Change the variable into the respective role
     if st.session_state.get("trigger_ai_greeting"):
         with st.chat_message("assistant"):
@@ -217,7 +191,7 @@ def cxo_page():
                 st.session_state.trigger_ai_greeting = False
     
     # ==========================================
-    # 5. MAIN CHAT INTERFACE
+    # 4. MAIN CHAT INTERFACE
     # ==========================================
 
     # Chatbot Input
@@ -241,7 +215,30 @@ def cxo_page():
 
                 # response = response_text.json()
                 st.markdown(response_text)
-                st.session_state.messages.append({"role": "assistant", "content": response_text}) 
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+
+    # ==========================================
+    # 5. BUTTON CONTROLS
+    # ==========================================
+    with st.container(horizontal_alignment="center"):
+        if st.session_state.phase == "GREETING":
+            if st.button("🎓 Start Tutoring", key="start_tutoring"):
+                st.session_state.phase = "TUTORING"
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()
+        elif st.session_state.phase == "TUTORING":
+            if st.button("🚀 Start Roleplay", key="start_roleplay"):
+                st.session_state.phase = "ROLEPLAY"
+                st.session_state.messages = []
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()
+            # st.info("Ask questions to deepen understanding")
+        elif st.session_state.phase == "ROLEPLAY":
+            if st.button("🏁 Finish & Grade", key="finish_grade"):
+                st.session_state.phase = "GRADING"
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()
+            # st.error("Simulation in progress")
 
 pages = {
     "": [
