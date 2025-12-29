@@ -39,7 +39,7 @@ def mainpage():
     st.title("Main Page")
 
 def mb_page():
-    st.title("Explore all the Trusted Advisory")
+    st.title("Explore all Magang Bakti Roleplay")
     st.markdown("Practice real-world scenario through immersive roleplays or personalized tutoring.")
     # TODO: Implement a functional search bar here.
     st.text_input(label = "Search for tutors", label_visibility = "collapsed", width = 600, icon = ":material/search:", placeholder = "Search for tutors")
@@ -85,7 +85,7 @@ def mb_page():
     # 3. Call the reusable function
     render_advisor_grid(dummy_advisor)
 
-    # Sidebar
+    # 
     st.sidebar.title("Welcome, User")
     with st.sidebar:
         if st.button(
