@@ -45,7 +45,6 @@ def mb_page():
     st.text_input(label = "Search for tutors", label_visibility = "collapsed", width = 600, icon = ":material/search:", placeholder = "Search for tutors")
     st.divider()
     st.subheader("Trusted Advisory")
-    row = st.columns(3)
 
     dummy_advisor = {
         "Title": [
