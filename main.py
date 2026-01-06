@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from engine import query_chain, load_vectors, get_retriever
@@ -422,7 +423,71 @@ def dashboard_data():
     return df
 
 def dashboard():
-    st.header("Dashboard")
+    st.header("PIC Dashboard Center")
+    st.markdown("Monitor trainee performance, track active sessions, and generate audit reports.")
+
+    # Load Data
+    df = dashboard_data()
+
+    # ==========================================
+    # 1. Key Performance Indicators (KPI)
+    # ==========================================
+    # Calculate Metrics
+    total_trainees = len(df)
+    avg_score = df["Score"].mean()
+    pass_rate = (df[df["Status"] == "Passed"].shape[0] / total_trainees) * 100
+    active_roles = df["Role"].value_counts().idxmax() # Most popular role
+
+    # Display Metrics in Columns
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    
+    # Style
+    st.markdown('''
+    <style>
+        [data-testid="stMetric"] {
+            min-height: 180px;
+            width: auto;
+            background-color: #272630;
+        }
+        [data-testid="stMetric"] > div {
+            display: flex;
+            flex-direction: column;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        [data-testid="stMetricLabel"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        [data-testid="stMetricLabel"] p {
+            font-size: 1.2rem;
+            font-weight: medium;
+            white-space: nowrap;
+        }
+        [data-testid="stMetricValue"] {
+            font-weight: bold;
+            font-size: 4rem;
+        }
+        [data-testid="stMetricDelta"] {
+            font-size: 1rem;
+        }
+        
+    </style>
+    ''', unsafe_allow_html=True)
+    
+    with kpi1:
+        st.metric(label="Total Sessions", value=total_trainees, delta="2 New", border=True)
+    with kpi2:
+        st.metric(label="Average Score", value=f"{avg_score:.1f}", delta=f"{avg_score - 70:.1f} vs Target", border=True)
+    with kpi3:
+        st.metric(label="Pass Rate", value=f"{pass_rate:.0f}%", delta="-5%" if pass_rate < 80 else "On Track", border=True)
+    with kpi4:
+        st.metric(label="Most Active Role", value=active_roles, border=True)
 
 def test():
     st.title("Test")
