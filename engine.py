@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import sqlite3
+from datetime import datetime
 from typing import Dict
 from dotenv import load_dotenv
 from langchain_ollama import OllamaEmbeddings
