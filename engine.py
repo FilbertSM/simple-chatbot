@@ -15,11 +15,136 @@ from langchain_core.output_parsers import StrOutputParser
 load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploaded_pdfs") # Documents Dir
 PERSIST_DIR = os.getenv("PERSIST_DIR", "./chroma_store") # Vector Data Dir
+DB_NAME = ""
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Embedding & LLM Models
 embeddings = OllamaEmbeddings(model="mxbai-embed-large")
 llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
+
+# Initialize DB
+def init_db():
+  """Initializes the SQLite database with the sessions table."""
+  con = sqlite3.connect(DB_NAME)
+  c = con.cursor()
+  # Table: Roles (Categories)
+  c.execute('''CREATE TABLE IF NOT EXISTS roles (
+      role_id TEXT PRIMARY KEY,
+      role_name TEXT
+  )''')
+
+  # Table: Scenarios (The Content Pairs)
+  # Linked to Role. Stores the Prompts.
+  c.execute('''CREATE TABLE IF NOT EXISTS scenarios (
+      scenario_id TEXT PRIMARY KEY,
+      role_id TEXT,
+      topic TEXT,
+      mentor_persona TEXT,
+      simulation_persona TEXT,
+      scenario_details TEXT,
+      FOREIGN KEY(role_id) REFERENCES roles(role_id)
+  )''')
+
+  # Table: Grading Rubrics (Prompt Parameters)
+  # Stores the criteria list for the AI.
+  c.execute('''CREATE TABLE IF NOT EXISTS grading_rubrics (
+      rubric_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scenario_id TEXT,
+      criteria TEXT,
+      description TEXT,
+      FOREIGN KEY(scenario_id) REFERENCES scenarios(scenario_id)
+  )''')
+
+  # Table: Sessions (Header)
+  # Replaced 'user_id' with 'trainee_name' for simple tracking.
+  c.execute('''CREATE TABLE IF NOT EXISTS sessions (
+      session_id TEXT PRIMARY KEY,
+      trainee_name TEXT,
+      scenario_id TEXT,
+      date TEXT,
+      total_score INTEGER,
+      readiness TEXT,
+      chat_log TEXT,
+      FOREIGN KEY(scenario_id) REFERENCES scenarios(scenario_id)
+  )''')
+
+  # Table: Session Grades (Detail)
+  # Stores specific scores/feedback per criteria.
+  c.execute('''CREATE TABLE IF NOT EXISTS session_grades (
+      grade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT,
+      criteria TEXT,
+      score INTEGER,
+      evidence TEXT,
+      feedback TEXT,
+      FOREIGN KEY(session_id) REFERENCES sessions(session_id)
+  )''')
+
+  con.commit()
+  con.close()
+
+  seed_db()
+
+def seed_db():
+  """
+  Populates the DB with the initial 'CS' and 'Teller' data 
+  so the app isn't empty on first run.
+  """
+  con = sqlite3.connect(DB_NAME)
+  c = con.cursor()
+  
+  # Check if data exists
+  c.execute("SELECT count(*) FROM roles")
+  if c.fetchone()[0] > 0:
+      con.close()
+      return
+
+  # 1. Insert Roles
+  roles = [
+      ("CS", "Customer Service"),
+      ("TELLER", "Bank Teller")
+  ]
+  c.executemany("INSERT INTO roles VALUES (?,?)", roles)
+
+  # 2. Insert Scenarios (Using your existing prompts)
+  # Mapping: scenario_id is used as the 'role_id' in your current UI logic (e.g. CS_COMPLAINT)
+  scenarios = [
+      (
+          "TELLER_CASH", "TELLER", 
+          "Penanganan Uang Meragukan (Counterfeit) pada Nasabah Prioritas",
+          "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Anda adalah perwujudan dari 'Zero Tolerance Policy'. Bagi Anda, melindungi bank dari risiko operasional dan reputasi adalah segalanya. Gaya bicara Anda tegas, instruktif, dan selalu menekankan pada prinsip 3D (Dilihat, Diraba, Diterawang) serta pelaporan berjenjang.", 
+          "Anda adalah 'Bapak Hartono', nasabah Prioritas (Solitaire) pemilik jaringan ritel terbesar di kota ini. Anda sangat sibuk dan merasa prosedur bank yang berbelit-belit hanya membuang waktu Anda. Anda tipe orang yang biasa dilayani VIP. Jika ada hambatan, Anda cenderung langsung menelpon Pimpinan Cabang daripada berdebat dengan staf.", 
+          "Bapak Hartono menyetor Rp 200 Juta tunai hasil penjualan toko. Mesin hitung menolak (reject) 2 lembar pecahan Rp 100.000. Saat diperiksa manual, kertas terasa halus dan benang pengaman tidak berubah warna (Indikasi Palsu). Konflik: Bapak Hartono tersinggung uangnya diragukan, mengklaim itu uang dari ATM bank ini juga, dan mengancam akan memindahkan seluruh saldo depositonya jika Anda mempermasalahkan 'uang receh' 200 ribu tersebut."
+      ),
+      (
+          "CS_COMPLAINT", "CS", 
+          "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
+          "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'. Motto Anda: 'Nasabah mungkin salah karena memberikan OTP, tapi mereka adalah korban kejahatan yang sedang panik. Jangan hakimi mereka, tapi lindungi aset mereka.",
+          "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank, lalu saldo rekening Anda berkurang Rp 15 Juta. Anda sangat panik, marah, menangis, dan menyalahkan sistem keamanan bank yang lemah. Anda menuntut uang kembali detik ini juga.", 
+          "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing). Nasabah tidak sadar bahwa itu kesalahannya dan menuntut Bank bertanggung jawab. Trainee harus melakukan pemblokiran darurat, menenangkan nasabah, menggali kronologi tanpa menghakimi, namun tetap tegas menjelaskan bahwa proses pengembalian dana membutuhkan investigasi dan tidak bisa instan."
+      )
+  ]
+  c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
+
+  # 3. Insert Rubrics
+  rubrics = [
+      # TELLER Rubrics
+      ("TELLER_CASH", "Sikap Profesional & Tenang", "Trainee tidak boleh terlihat gugup atau terintimidasi oleh status nasabah. Tetap melakukan 3D (Dilihat, Diraba, Diterawang) secara transparan di hadapan nasabah."),
+      ("TELLER_CASH", "Pemilihan Kata (Euphemism)", "DILARANG menggunakan kata 'PALSU' sebelum verifikasi final. Gunakan frasa: 'Maaf Bapak, ada beberapa lembar yang tidak lolos sensor mesin dan perlu kami verifikasi manual'."),
+      ("TELLER_CASH", "Handling Threat", "Saat nasabah mengancam memindahkan dana, Trainee tetap tenang dan menjelaskan bahwa prosedur ini justru untuk melindungi nasabah dari peredaran uang yang tidak layak, bukan menuduh nasabah."),
+      ("TELLER_CASH", "Prosedur Penahanan", "Menjelaskan aturan Bank Indonesia bahwa fisik uang harus ditahan untuk dikirim ke BI (Klarifikasi), dan memberikan tanda terima penahanan uang kepada nasabah."),
+      
+      # CS Rubrics
+      ("CS_COMPLAINT", "Immediate Security Action", "Langkah pertama Trainee HARUS melakukan pemblokiran akun/kartu untuk mencegah kerugian lebih lanjut sebelum mendengarkan cerita panjang lebar."),
+      ("CS_COMPLAINT", "Empati Tanpa Menjanjikan (No False Promise)", "Mengucapkan keprihatinan mendalam ('Saya turut prihatin atas kejadian ini Bu'), NAMUN tidak boleh menjanjikan uang pasti kembali.")
+      ("CS_COMPLAINT", "Investigasi Kronologis (Fact Finding)", "Menggali data sensitif dengan hati-hati: 'Apakah Ibu sempat memberikan kode OTP atau mengklik tautan/aplikasi di luar PlayStore?'")
+      ("CS_COMPLAINT", "Edukasi & Ekspektasi", "Menjelaskan prosedur investigasi (SLA kerja), pembuatan laporan kepolisian, dan mengedukasi nasabah tentang bahaya file APK/Phishing agar tidak terulang.")
+  ]
+  c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
+
+  con.commit()
+  con.close()
+  print("Database seeded with default content.")
 
 # Logger
 def setup_logger(name="gaia"):
@@ -94,7 +219,7 @@ DUMMY_DB = [
   {
     "role_name": "CS_COMPLAINT",
     "topic": "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
-    "mentor_persona": "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'. Motto Anda: 'Nasabah mungkin salah karena memberikan OTP, tapi mereka adalah korban kejahatan yang sedang panik. Janganhakimi mereka, tapi lindungi aset mereka.'",
+    "mentor_persona": "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'. Motto Anda: 'Nasabah mungkin salah karena memberikan OTP, tapi mereka adalah korban kejahatan yang sedang panik. Jangan hakimi mereka, tapi lindungi aset mereka.",
     "simulation_persona_text": "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank, lalu saldo rekening Anda berkurang Rp 15 Juta. Anda sangat panik, marah, menangis, dan menyalahkan sistem keamanan bank yang lemah. Anda menuntut uang kembali detik ini juga.",
     "scenario_details_text": "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing). Nasabah tidak sadar bahwa itu kesalahannya dan menuntut Bank bertanggung jawab. Trainee harus melakukan pemblokiran darurat, menenangkan nasabah, menggali kronologi tanpa menghakimi, namun tetap tegas menjelaskan bahwa proses pengembalian dana membutuhkan investigasi dan tidak bisa instan.",
     "success_criteria": [
