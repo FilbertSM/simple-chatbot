@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import streamlit as st
+import altair as alt
 from dotenv import load_dotenv
 from engine import query_chain, load_vectors, get_retriever
 from langchain_ollama.llms import OllamaLLM
@@ -413,7 +414,7 @@ def dashboard_data():
         "Date": pd.date_range(start="2024-01-01", periods=10, freq="D"),
         "Score": [85, 45, 92, 78, 60, 88, 95, 55, 72, 81],
         "Duration (Mins)": [12, 25, 15, 10, 30, 14, 11, 28, 18, 13],
-        "Status": ["Passed", "Failed", "Passed", "Passed", "Needs Improvement", "Passed", "Passed", "Failed", "Passed", "Passed"]
+        "Status": ["Passed", "Failed", "Passed", "Passed", "Failed", "Passed", "Passed", "Failed", "Passed", "Passed"]
     }
     df = pd.DataFrame(data)
     
@@ -423,7 +424,7 @@ def dashboard_data():
     return df
 
 def dashboard():
-    st.header("PIC Dashboard Center")
+    st.header("PIC Dashboard")
     st.markdown("Monitor trainee performance, track active sessions, and generate audit reports.")
 
     # Load Data
@@ -488,6 +489,35 @@ def dashboard():
         st.metric(label="Pass Rate", value=f"{pass_rate:.0f}%", delta="-5%" if pass_rate < 80 else "On Track", border=True)
     with kpi4:
         st.metric(label="Most Active Role", value=active_roles, border=True)
+
+    # ==========================================
+    # 2. Charts
+    # ==========================================
+    col_chart1, col_chart2 = st.columns(2)
+
+    with col_chart1:
+        with st.container(border=True, height="stretch"):
+            st.markdown("#### Score Distribution")
+            # Altair Chart
+            chart = alt.Chart(df).mark_bar(size=30).encode(
+                x = alt.X("Score", bin=True),
+                y = 'count()',
+                color = alt.Color("Status").scale(range=["#e74c3c", "#2ecc71"])
+            ).properties(height=300)
+            st.altair_chart(chart, use_container_width=True)
+
+    with col_chart2:
+        with st.container(border=True, height="stretch"):
+            st.markdown("#### Readiness Level")
+            readiness_counts = df["Readiness"].value_counts().reset_index()
+            readiness_counts.columns = ["Level", "Count"]
+            domain = ["Not Ready", "Training Needed", "Ready"]
+            chart2 = alt.Chart(readiness_counts).mark_bar(size=60).encode(
+                x = alt.X("Level:N", axis=alt.Axis(labelAngle=0), sort=domain),
+                y = alt.Y("Count:Q"),
+                color = alt.Color("Level").scale(domain=domain, range=["#e74c3c", "#f1c40f", "#2ecc71"])
+            ).properties(height=300)
+            st.altair_chart(chart2, use_container_width=True)
 
 def test():
     st.title("Test")
