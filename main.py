@@ -404,7 +404,7 @@ def dashboard_data():
         "Session ID": [f"SES-{i:03d}" for i in range(101, 111)],
         "Trainee Name": [
             "Andi Saputra", "Budi Santoso", "Citra Lestari", "Dewi Persik", 
-            "Eko Patrio", "Fajar Sadboy", "Gita Gutawa", "Hesti Purwadinata", 
+            "Eko Patrio", "Fajar Hadi", "Gita Gutawa", "Hesti Purwadinata", 
             "Indra Bekti", "Joko Anwar"
         ],
         "Role": [
@@ -477,7 +477,6 @@ def dashboard():
         [data-testid="stMetricDelta"] {
             font-size: 1rem;
         }
-        
     </style>
     ''', unsafe_allow_html=True)
     
@@ -519,6 +518,83 @@ def dashboard():
             ).properties(height=300)
             st.altair_chart(chart2, use_container_width=True)
 
+    # ==========================================
+    # 3. Records
+    # ==========================================
+    # Filter Toolbar
+    col_filter1, col_filter2 = st.columns([3, 1])
+
+    with col_filter1:
+        # Search Bar
+        search_query = st.text_input("🔍 Search Trainee Name", placeholder="Type name...")
+    with col_filter2:
+        # Button Generate Report
+        st.space()
+        csv_data = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📄 Export Report (CSV)",
+            data=csv_data,
+            file_name="trainee_performance_report.csv",
+            mime="text/csv",
+            type="primary",
+            use_container_width=True
+        )
+
+    # Filter Logic
+    if search_query:
+        filtered_df = df[df["Trainee Name"].str.contains(search_query, case=False)]
+    else:
+        filtered_df = df
+
+    st.dataframe(
+        data=filtered_df,
+        use_container_width=True,
+        column_config={
+            "Score": st.column_config.ProgressColumn(
+                "Score",
+                format="%d",
+                min_value=0,
+                max_value=100,
+            ),
+            "Status": st.column_config.TextColumn(
+                "Status",
+                validate="^(Passed|Failed)$",
+                
+            ),
+            "Session ID": st.column_config.TextColumn(
+                "Session Record",
+                help="Double click to copy ID"
+            )
+        }, hide_index=True
+    )
+
+    # ==========================================
+    # 4. Trainee Report
+    # ==========================================
+    st.write("")
+    st.markdown("#### 🔎 View Trainee Report")
+
+    selected_session = st.selectbox("Select Session ID to View Report:", df["Session ID"])
+
+    if selected_session:
+        session_data = df[df["Session ID"] == selected_session].iloc[0]
+
+        with st.expander(f"Report for {session_data['Trainee Name']} ({selected_session})", expanded=True):
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                st.write(f"**Role:** {session_data['Role']}")
+                st.write(f"**Date:** {session_data['Date'].strftime('%Y-%m-%d')}")
+                st.write(f"**Duration:** {session_data['Duration (Mins)']} Minutes")
+            with d_col2:
+                # Dynamic Badge Color
+                color = "green" if session_data['Score'] > 80 else "red"
+                st.markdown(f"**Final Score:** :{color}[{session_data['Score']}/100]")
+                st.markdown(f"**Readiness:** {session_data['Readiness']}")
+
+            st.divider()
+            st.markdown("**📝 PIC Notes:**")
+            st.caption("Auto-generated summary from the Grading Phase would appear here...")
+
 def test():
     st.title("Test")
 
@@ -529,7 +605,7 @@ pages = {
         # st.Page(cxo_page, title="👤 CXO Chatbot"),
         st.Page(new_cxo_page, title="👤New CXO Chatbot"),
         st.Page(dashboard, title="📊 PIC Dashboard"),
-        st.Page(test, title="Test"),
+        # st.Page(test, title="Test"),
     ]
 }
 
