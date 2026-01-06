@@ -49,20 +49,20 @@ def mb_page():
     # NOTE: Change this with real data
     dummy_advisor = {
         "Title": [
-            "Product Knowledge",
+            "Customer Service",
             "Business Relationship",
             "Management",
             "Risk Assessment",
             "Compliance Training",
-            "Customer Service"
+            "Product Knowledge"
         ],
         "Description": [
-            "Master key banking products and services through interactive real-world scenarios.",
+            "Deliver exceptional customer experiences by learning effective communication.",
             "Develop essential skills to build trust, communicate effectively, and grow client relationships.",
             "Enhance leadership and decision-making abilities for team management and strategic planning for agile growth.",
             "Identify, evaluate, and mitigate financial risks proactively and continuously using industry best practices.",
             "Stay updated on regulatory requirements and compliance standards through engaging.",
-            "Deliver exceptional customer experiences by learning effective communication."
+            "Master key banking products and services through interactive real-world scenarios."
         ],
         "Image Path": [
             "https://placehold.co/500x500",
@@ -134,10 +134,10 @@ def cxo_page():
                 </div>
             </div>
             <div>
-                <h1>Product Knowledge</h1>
+                <h1>Customer Service</h1>
             </div>
             <div style="margin-bottom: 32px; color: #aaa; font-size: 15px; text-align: center; max-width: 320px;">
-                Master key banking products and services through interactive real-world scenarios.
+                Deliver exceptional customer experiences by learning effective communication.
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -249,12 +249,194 @@ def cxo_page():
                 st.rerun()
             # st.error("Simulation in progress")
 
+def new_cxo_page():
+    # ==========================================
+    # 1. INITIALIZE SESSION STATE
+    # ==========================================
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Initialize the Phase if it doesn't exist
+    if "phase" not in st.session_state:
+        st.session_state.phase = "START"
+        st.session_state.trigger_ai_greeting = False # Set the AI to speak first on page load
+
+    # Cache AI Variables
+    if "retriever" not in st.session_state:
+        with st.spinner("Initializing AI..."):
+            vs = load_vectors()
+            st.session_state.retriever = get_retriever(vs)
+            st.session_state.llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview")
+            # st.session_state.llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
+
+    # ==========================================
+    # 2. RENDER HISTORY
+    # ==========================================
+    for msg in st.session_state.messages:
+        st.chat_message(msg["role"]).markdown(msg["content"])
+
+    # Sidebar
+    with st.sidebar:
+        st.title("Welcome, User")
+        # st.caption(f"Mode: {st.session_state.phase}")
+        if st.button(
+            label = "Logout",
+            type = "primary"
+        ):
+            st.text("Logout")
+
+    # ==========================================
+    # 3. AUTO-TRIGGER (AI Speaks First)
+    # ==========================================
+
+    role_id = "CS_COMPLAINT" # Change the variable into the respective role
+    if st.session_state.get("trigger_ai_greeting"):
+        with st.chat_message("assistant"):
+            with st.spinner("AI is preparing..."):
+                response_text = query_chain(
+                    retriever=st.session_state.retriever,
+                    llm=st.session_state.llm,
+                    user_input="[SYSTEM_TRIGGER_START]",
+                    role_id=role_id, 
+                    current_phase=st.session_state.phase,
+                    chat_history=st.session_state.messages
+                )
+                
+                st.markdown(response_text)
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                st.session_state.trigger_ai_greeting = False
+    
+    # ==========================================
+    # 4. MAIN CHAT INTERFACE
+    # ==========================================
+
+    # Chatbot Input
+    user_input = st.chat_input("Hi! Ask me anything...")
+
+    if user_input:
+        # Show user input
+        st.chat_message("user").markdown(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        # Generate API Response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response_text = query_chain(
+                    retriever=st.session_state.retriever,
+                    llm=st.session_state.llm,
+                    user_input=user_input,
+                    role_id=role_id,
+                    current_phase=st.session_state.phase,
+                    chat_history=st.session_state.messages
+                )
+
+                # response = response_text.json()
+                st.markdown(response_text)
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+
+    # ==========================================
+    # 5. BUTTON CONTROLS
+    # ==========================================
+    with st.container(horizontal_alignment="center"):
+        if st.session_state.phase == "START":
+            # Content Information
+            st.header("Virtual Advisory & Roleplay Simulator")
+            
+            st.markdown("""
+            Welcome to your personal **AI Training Ground**. 
+            This simulator is designed to help you master Banking Standard Operating Procedures (SOPs) through a structured, interactive learning journey.
+
+            ### 🗺️ How This Session Works
+            Unlike a standard chat, this session follows a strict **3-Phase Learning Path**:
+
+            1.  **🎓 Tutoring Phase:** Start here to validate your knowledge. The AI Mentor will quiz you on the SOPs. *Use this time to ask questions!*
+            2.  **🚀 Roleplay Phase:** Once you are ready, you will enter the simulation. 
+                * **⚠️ Warning:** The AI will switch personas (e.g., to an Angry Customer) and will **STOP** helping you. 
+                * You must handle the situation based on regulations without assistance.
+            3.  **🏁 Grading Phase:** The session concludes with a detailed audit. You will receive a score and specific feedback based on the rubric.
+
+            ---
+            
+            ### 💡 Guidelines for Success
+            * **Follow the UI Buttons:** To move between phases, you **must click the buttons** located below the chat. The AI will tell you when to click them.
+            * **Be Specific:** During the Roleplay, general answers like *"I will handle it"* won't work. You must speak exactly as you would to a real customer (e.g., *"Mohon maaf Bapak, boleh saya pinjam KTP-nya?"*).
+            * **Check the Knowledge Base:** During Tutoring, the AI answers based on the official PDF manuals. Trust the data provided.
+            
+            **Ready to begin?** Click the "📖 Start Session" button to initialize the session!
+            """)
+            st.divider()
+            if st.button("📖 Start Session", key="start_session"):
+                st.session_state.phase = "GREETING"
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()  
+        elif st.session_state.phase == "GREETING":
+            if st.button("🎓 Start Tutoring", key="start_tutoring"):
+                st.session_state.phase = "TUTORING"
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()
+        elif st.session_state.phase == "TUTORING":
+            if st.button("🚀 Start Roleplay", key="start_roleplay"):
+                st.session_state.phase = "ROLEPLAY"
+                st.session_state.messages = []
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()
+            # st.info("Ask questions to deepen understanding")
+        elif st.session_state.phase == "ROLEPLAY":
+            if st.button("💯 Finish & Grade", key="finish_grade"):
+                st.session_state.phase = "GRADING"
+                st.session_state.trigger_ai_greeting = True
+                st.rerun()
+            # st.error("Simulation in progress")
+        elif st.session_state.phase == "GRADING":
+            if st.button("🏁 Finish the Session", key="finish_session"):
+                st.session_state.phase = "FINISHED"
+                # Logic to create a record and report
+                st.rerun()
+
+def dashboard_data():
+    """
+    Generates dummy data to simulate the Trainee Database.
+    In a real app, this would be a SQL Query: SELECT * FROM sessions
+    """
+    data = {
+        "Session ID": [f"SES-{i:03d}" for i in range(101, 111)],
+        "Trainee Name": [
+            "Andi Saputra", "Budi Santoso", "Citra Lestari", "Dewi Persik", 
+            "Eko Patrio", "Fajar Sadboy", "Gita Gutawa", "Hesti Purwadinata", 
+            "Indra Bekti", "Joko Anwar"
+        ],
+        "Role": [
+            "Teller", "CS", "CS", "Teller", "Loan Officer", 
+            "CS", "Teller", "Loan Officer", "CS", "Teller"
+        ],
+        "Date": pd.date_range(start="2024-01-01", periods=10, freq="D"),
+        "Score": [85, 45, 92, 78, 60, 88, 95, 55, 72, 81],
+        "Duration (Mins)": [12, 25, 15, 10, 30, 14, 11, 28, 18, 13],
+        "Status": ["Passed", "Failed", "Passed", "Passed", "Needs Improvement", "Passed", "Passed", "Failed", "Passed", "Passed"]
+    }
+    df = pd.DataFrame(data)
+    
+    # Add a "Readiness" derived column based on score
+    df["Readiness"] = df["Score"].apply(lambda x: "Ready" if x > 80 else ("Training Needed" if x > 60 else "Not Ready"))
+    
+    return df
+
+def dashboard():
+    st.header("Dashboard")
+
+def test():
+    st.title("Test")
+
 pages = {
     "": [
-        st.Page(mainpage, title="👤 Roleplay & Tutor"),
-        st.Page(mb_page, title="Magang Bakti"),
-        st.Page(cxo_page, title="CXO Chatbot")
+        # st.Page(mainpage, title="👤 Roleplay & Tutor"),
+        # st.Page(mb_page, title="Magang Bakti"),
+        # st.Page(cxo_page, title="👤 CXO Chatbot"),
+        st.Page(new_cxo_page, title="👤New CXO Chatbot"),
+        st.Page(dashboard, title="📊 PIC Dashboard"),
+        st.Page(test, title="Test"),
     ]
 }
+
 pg = st.navigation(pages)
 pg.run()

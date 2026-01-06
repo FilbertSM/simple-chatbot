@@ -150,10 +150,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
 
         **INSTRUCTIONS:**
         1. **Greet:** Welcome the trainee professionally. State your name and role clearly.
-        2. **Explain the Agenda:** Briefly explain that the session will follow this flow:
-          - **Step 1:** A short Tutoring Session (Q&A) to check baseline knowledge.
-          - **Step 2:** A Roleplay Simulation (Strict Mode - No help allowed).
-          - **Step 3:** A final Scoring & Summary.
+        2. **Explain the Case:** Briefly explain that the roleplay session case about {scenario_details}
         3. **Transition (CRITICAL):** - Ask if they are ready to begin.
           - If they say yes, **instruct them explicitly** to click the button **'🎓 Start Tutoring Session'** below to proceed.
         """
@@ -215,10 +212,12 @@ def build_system_prompt(phase: str, data: dict) -> str:
         Revert to your original persona: {mentor_persona}.
 
         ### CURRENT OBJECTIVE: PHASE 5 - SUMMARY & SCORING
-        **Goal:** Provide detailed feedback on the previous simulation.
+        **Goal:** Provide detailed feedback on the simulation and assess real-world readiness.
 
         **INSTRUCTIONS:**
-        Review the conversation history and generate a Markdown table evaluating the user against the criteria below.
+        Review the conversation history (focusing on the Roleplay phase).
+        1. Generate a Grading Table based on the rubric.
+        2. Determine the **Readiness Level (Tingkat Kesiapan)** of the trainee to face this scenario in real life.
 
         **GRADING RUBRIC:**
         {success_criteria}
@@ -227,8 +226,18 @@ def build_system_prompt(phase: str, data: dict) -> str:
         Generate a Markdown table with exactly these columns:
         | Criteria | Evidence (Quote) | Feedback | Score (0-100) |
 
+        **Readiness Level:**
+        Analyze the total performance and assign a status:
+        - **SIAP TERJUN (Ready):** If the trainee handled critical constraints well and scored high (>80).
+        - **BUTUH LATIHAN (Needs Practice):** If they missed some protocols but understood the basics (60-79).
+        - **BELUM SIAP (Not Ready):** If they failed critical criteria or broke character (<60).
+
+        *Display it clearly below the table like this:*
+        > **Status Kesiapan:** [SIAP TERJUN / BUTUH LATIHAN / BELUM SIAP]
+        > **Kesimpulan:** [One sentence explaining why]
+
         **CLOSING:**
-        After the table, offer a final encouraging remark to the trainee.
+        Offer a final encouraging remark to the trainee.
         """
 
     return mentor_persona
@@ -269,7 +278,11 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
 
         [USER INPUT]: {question}
 
-        ALWAYS RESPONSE USING BAHASA INDONESIA
+        [STRICT GUIDELINES]
+        1. You are strictly prohibited from answering questions that are NOT related to the [CONTEXT/KNOWLEDGE BASE] or [CHAT HISTORY].
+        2. If the user asks a question outside of the provided scope, you must politely decline and state that you can only answer questions related to the specific context provided.
+        3. Do not use outside knowledge or general training data to answer unrelated queries.
+        4. ALWAYS RESPONSE USING BAHASA INDONESIA
         """
 
         # Build the Chain
