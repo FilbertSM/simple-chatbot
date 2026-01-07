@@ -614,3 +614,30 @@ def create_individual_report(session_data, ai_summary_text, grades_list):
     filename = f"{REPORTS_DIR}/{session_data['session_id']}_Individual_Report.docx"
     doc.save(filename)
     return filename
+
+def create_executive_summary(overall_stats, ai_insight_text):
+    """
+    Generates a Word doc for the PIC with aggregate insights.
+    """
+    doc = Document()
+    
+    # --- HEADER ---
+    title = doc.add_heading("Executive Training Summary", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d')}")
+    
+    # --- SECTION 1: HIGH LEVEL STATS ---
+    doc.add_heading("1. Training Overview", level=1)
+    p = doc.add_paragraph()
+    p.add_run(f"Total Sessions: {overall_stats['total_sessions']}\n")
+    p.add_run(f"Average Score: {overall_stats['avg_score']:.2f}\n")
+    p.add_run(f"Pass Rate: {overall_stats['pass_rate']}%")
+    
+    # --- SECTION 2: AI STRATEGIC ANALYSIS ---
+    doc.add_heading("2. AI Strategic Analysis", level=1)
+    doc.add_paragraph(ai_insight_text) 
+    
+    # --- SAVE ---
+    filename = f"{REPORTS_DIR}/Executive_Summary_{datetime.now().strftime('%Y%m%d')}.docx"
+    doc.save(filename)
+    return filename
