@@ -394,6 +394,7 @@ def new_cxo_page():
             if st.button("🏁 Finish the Session", key="finish_session"):
                 st.session_state.phase = "FINISHED"
                 # Logic to create a record and report
+                
                 st.rerun()
 
 def dashboard_data():
@@ -612,8 +613,6 @@ def dashboard():
     # ==========================================
     st.divider()
     st.subheader("3. Executive Reporting")
-    
-    col_gen, col_dl = st.columns([1, 2])
 
     with st.sidebar:
         if st.button("✨ Generate Report"):
@@ -637,53 +636,6 @@ def dashboard():
             with open(st.session_state['exec_report_path'], "rb") as f:
                 st.download_button(
                     label="📄 Download Executive Report (.docx)",
-                    data=f,
-                    file_name="Executive_Summary.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-    
-    with col_gen:
-        if st.button("✨ Generate AI Executive Insight"):
-            with st.spinner("AI is analyzing all training records..."):
-                
-                # 1. PREPARE DATA FOR AI
-                # Convert dataframe to a string summary for the LLM
-                data_summary = df.to_csv(index=False)
-                
-                # 2. PROMPT FOR AI
-                prompt = f"""
-                You are a Senior Training Consultant. Analyze the following training data CSV:
-                {data_summary}
-                
-                Write an Executive Summary (3-5 paragraphs) covering:
-                1. **Overall Performance Trends**: Are trainees generally passing?
-                2. **Common Weaknesses**: Identify roles or metrics with low scores.
-                3. **Strategic Recommendations**: What should the training team focus on next week?
-                """
-                
-                # 3. CALL LLM (Reusing your existing LLM setup)
-                # Ensure you have st.session_state.llm initialized or init a new one here
-                if "llm" not in st.session_state:
-                     st.session_state.llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview")
-                
-                ai_insight = st.session_state.llm.invoke(prompt).content
-                
-                # 4. GENERATE DOCX
-                stats = {
-                    "total_sessions": len(df),
-                    "avg_score": df["Score"].mean(),
-                    "pass_rate": (df[df["Status"] == "Passed"].shape[0] / len(df)) * 100
-                }
-                
-                report_path = create_executive_summary(stats, ai_insight)
-                st.session_state['exec_report_path'] = report_path
-                st.success("Executive Summary Generated!")
-
-    with col_dl:
-        if 'exec_report_path' in st.session_state:
-            with open(st.session_state['exec_report_path'], "rb") as f:
-                st.download_button(
-                    label="📄 Download Executive Summary (.docx)",
                     data=f,
                     file_name="Executive_Summary.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
