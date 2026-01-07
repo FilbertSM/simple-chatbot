@@ -17,7 +17,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 # Define Folders
 load_dotenv()
-DB_NAME = ""
+DB_NAME = "gaia.db"
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploaded_pdfs") # Documents Dir
 PERSIST_DIR = os.getenv("PERSIST_DIR", "./chroma_store") # Vector Data Dir
 REPORTS_DIR = os.getenv("REPORTS_DIR", "./reports") # Reports Dir
@@ -93,64 +93,85 @@ def init_db():
 
 def seed_db():
   """
-  Populates the DB with the initial 'CS' and 'Teller' data 
-  so the app isn't empty on first run.
+  Populates the DB with initial Role/Scenario data AND Dummy Sessions
+  to ensure the Dashboard functions correctly out-of-the-box.
   """
   con = sqlite3.connect(DB_NAME)
   c = con.cursor()
   
-  # Check if data exists
+  # Check if roles exist to avoid duplicates
   c.execute("SELECT count(*) FROM roles")
-  if c.fetchone()[0] > 0:
-      con.close()
-      return
-
-  # 1. Insert Roles
-  roles = [
-      ("CS", "Customer Service"),
-      ("TELLER", "Bank Teller")
-  ]
-  c.executemany("INSERT INTO roles VALUES (?,?)", roles)
-
-  # 2. Insert Scenarios (Using your existing prompts)
-  # Mapping: scenario_id is used as the 'role_id' in your current UI logic (e.g. CS_COMPLAINT)
-  scenarios = [
-      (
-          "TELLER_CASH", "TELLER", 
-          "Penanganan Uang Meragukan (Counterfeit) pada Nasabah Prioritas",
-          "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Anda adalah perwujudan dari 'Zero Tolerance Policy'. Bagi Anda, melindungi bank dari risiko operasional dan reputasi adalah segalanya. Gaya bicara Anda tegas, instruktif, dan selalu menekankan pada prinsip 3D (Dilihat, Diraba, Diterawang) serta pelaporan berjenjang.", 
-          "Anda adalah 'Bapak Hartono', nasabah Prioritas (Solitaire) pemilik jaringan ritel terbesar di kota ini. Anda sangat sibuk dan merasa prosedur bank yang berbelit-belit hanya membuang waktu Anda. Anda tipe orang yang biasa dilayani VIP. Jika ada hambatan, Anda cenderung langsung menelpon Pimpinan Cabang daripada berdebat dengan staf.", 
-          "Bapak Hartono menyetor Rp 200 Juta tunai hasil penjualan toko. Mesin hitung menolak (reject) 2 lembar pecahan Rp 100.000. Saat diperiksa manual, kertas terasa halus dan benang pengaman tidak berubah warna (Indikasi Palsu). Konflik: Bapak Hartono tersinggung uangnya diragukan, mengklaim itu uang dari ATM bank ini juga, dan mengancam akan memindahkan seluruh saldo depositonya jika Anda mempermasalahkan 'uang receh' 200 ribu tersebut."
-      ),
-      (
-          "CS_COMPLAINT", "CS", 
-          "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
-          "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'. Motto Anda: 'Nasabah mungkin salah karena memberikan OTP, tapi mereka adalah korban kejahatan yang sedang panik. Jangan hakimi mereka, tapi lindungi aset mereka.",
-          "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank, lalu saldo rekening Anda berkurang Rp 15 Juta. Anda sangat panik, marah, menangis, dan menyalahkan sistem keamanan bank yang lemah. Anda menuntut uang kembali detik ini juga.", 
-          "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing). Nasabah tidak sadar bahwa itu kesalahannya dan menuntut Bank bertanggung jawab. Trainee harus melakukan pemblokiran darurat, menenangkan nasabah, menggali kronologi tanpa menghakimi, namun tetap tegas menjelaskan bahwa proses pengembalian dana membutuhkan investigasi dan tidak bisa instan."
-      )
-  ]
-  c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
-
-  # 3. Insert Rubrics
-  rubrics = [
-      # TELLER Rubrics
-      ("TELLER_CASH", "Sikap Profesional & Tenang", "Trainee tidak boleh terlihat gugup atau terintimidasi oleh status nasabah. Tetap melakukan 3D (Dilihat, Diraba, Diterawang) secara transparan di hadapan nasabah."),
-      ("TELLER_CASH", "Pemilihan Kata (Euphemism)", "DILARANG menggunakan kata 'PALSU' sebelum verifikasi final. Gunakan frasa: 'Maaf Bapak, ada beberapa lembar yang tidak lolos sensor mesin dan perlu kami verifikasi manual'."),
-      ("TELLER_CASH", "Handling Threat", "Saat nasabah mengancam memindahkan dana, Trainee tetap tenang dan menjelaskan bahwa prosedur ini justru untuk melindungi nasabah dari peredaran uang yang tidak layak, bukan menuduh nasabah."),
-      ("TELLER_CASH", "Prosedur Penahanan", "Menjelaskan aturan Bank Indonesia bahwa fisik uang harus ditahan untuk dikirim ke BI (Klarifikasi), dan memberikan tanda terima penahanan uang kepada nasabah."),
+  if c.fetchone()[0] == 0:
+      print("Seeding Core Data (Roles, Scenarios, Rubrics)...")
       
-      # CS Rubrics
-      ("CS_COMPLAINT", "Immediate Security Action", "Langkah pertama Trainee HARUS melakukan pemblokiran akun/kartu untuk mencegah kerugian lebih lanjut sebelum mendengarkan cerita panjang lebar."),
-      ("CS_COMPLAINT", "Empati Tanpa Menjanjikan (No False Promise)", "Mengucapkan keprihatinan mendalam ('Saya turut prihatin atas kejadian ini Bu'), NAMUN tidak boleh menjanjikan uang pasti kembali.")
-      ("CS_COMPLAINT", "Investigasi Kronologis (Fact Finding)", "Menggali data sensitif dengan hati-hati: 'Apakah Ibu sempat memberikan kode OTP atau mengklik tautan/aplikasi di luar PlayStore?'")
-      ("CS_COMPLAINT", "Edukasi & Ekspektasi", "Menjelaskan prosedur investigasi (SLA kerja), pembuatan laporan kepolisian, dan mengedukasi nasabah tentang bahaya file APK/Phishing agar tidak terulang.")
-  ]
-  c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
+      # 1. Insert Roles
+      roles = [
+          ("CS", "Customer Service"),
+          ("TELLER", "Bank Teller")
+      ]
+      c.executemany("INSERT INTO roles VALUES (?,?)", roles)
+
+      # 2. Insert Scenarios
+      scenarios = [
+          (
+              "TELLER_CASH", "TELLER", 
+              "Penanganan Uang Meragukan (Counterfeit) pada Nasabah Prioritas",
+              "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Anda adalah perwujudan dari 'Zero Tolerance Policy'.", 
+              "Anda adalah 'Bapak Hartono', nasabah Prioritas (Solitaire) pemilik jaringan ritel terbesar di kota ini.", 
+              "Bapak Hartono menyetor Rp 200 Juta tunai hasil penjualan toko. Mesin hitung menolak (reject) 2 lembar pecahan Rp 100.000."
+          ),
+          (
+              "CS_COMPLAINT", "CS", 
+              "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
+              "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'.",
+              "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank.", 
+              "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing)."
+          )
+      ]
+      c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
+
+      # 3. Insert Rubrics
+      rubrics = [
+          ("TELLER_CASH", "Sikap Profesional & Tenang", "Trainee tidak boleh terlihat gugup."),
+          ("TELLER_CASH", "Pemilihan Kata (Euphemism)", "DILARANG menggunakan kata 'PALSU' sebelum verifikasi."),
+          ("CS_COMPLAINT", "Immediate Security Action", "Langkah pertama Trainee HARUS melakukan pemblokiran."),
+          ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu.")
+      ]
+      c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
+
+  # 4. Insert Dummy Sessions (For Dashboard Visualization)
+  c.execute("SELECT count(*) FROM sessions")
+  if c.fetchone()[0] == 0:
+      print("Seeding Dummy Session Data...")
+      
+      # Format: session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log
+      dummy_sessions = [
+          ("SES-101", "Andi Saputra", "TELLER_CASH", "2024-10-01 09:30", 88, "SIAP TERJUN", "System: Welcome..."),
+          ("SES-102", "Budi Santoso", "CS_COMPLAINT", "2024-10-02 10:15", 55, "BELUM SIAP", "System: Welcome..."),
+          ("SES-103", "Citra Lestari", "TELLER_CASH", "2024-10-03 11:00", 92, "SIAP TERJUN", "System: Welcome..."),
+          ("SES-104", "Dewi Persik", "CS_COMPLAINT", "2024-10-04 13:45", 76, "BUTUH LATIHAN", "System: Welcome..."),
+          ("SES-105", "Eko Patrio", "TELLER_CASH", "2024-10-05 14:30", 65, "BUTUH LATIHAN", "System: Welcome..."),
+          ("SES-106", "Fajar Hadi", "CS_COMPLAINT", "2024-10-06 15:00", 40, "BELUM SIAP", "System: Welcome..."),
+          ("SES-107", "Gita Gutawa", "TELLER_CASH", "2024-10-07 08:30", 95, "SIAP TERJUN", "System: Welcome..."),
+          ("SES-108", "Hesti Purwadinata", "CS_COMPLAINT", "2024-10-07 09:00", 82, "SIAP TERJUN", "System: Welcome..."),
+          ("SES-109", "Indra Bekti", "TELLER_CASH", "2024-10-08 10:45", 70, "BUTUH LATIHAN", "System: Welcome..."),
+          ("SES-110", "Joko Anwar", "CS_COMPLAINT", "2024-10-08 11:30", 89, "SIAP TERJUN", "System: Welcome...")
+      ]
+      c.executemany("INSERT INTO sessions VALUES (?,?,?,?,?,?,?)", dummy_sessions)
+
+      # 5. Insert Dummy Grades (Linked to Sessions)
+      # Format: session_id, criteria, score, evidence, feedback
+      dummy_grades = [
+          ("SES-101", "Sikap Profesional & Tenang", 90, "Nasabah marah, trainee tetap senyum", "Good job maintaining composure."),
+          ("SES-101", "Pemilihan Kata (Euphemism)", 85, "Menggunakan istilah 'diragukan'", "Tepat sekali."),
+          ("SES-102", "Immediate Security Action", 20, "Hanya mendengarkan curhat nasabah", "Fatal: Lupa blokir rekening."),
+          ("SES-102", "Empati Tanpa Menjanjikan", 90, "Saya turut prihatin bu", "Empati bagus."),
+      ]
+      c.executemany("INSERT INTO session_grades (session_id, criteria, score, evidence, feedback) VALUES (?,?,?,?,?)", dummy_grades)
 
   con.commit()
   con.close()
-  print("Database seeded with default content.")
+  print("Database seeding complete.")
 
 # Logger
 def setup_logger(name="gaia"):
@@ -274,11 +295,11 @@ def get_scenario_config(scenario_id):
     con.close()
     return None
   
-  scenario_data = dict[row]
+  scenario_data = dict(row)
 
   # 2. Get Rubrics List
   c.execute("SELECT criteria, description FROM grading_rubrics WHERE scenario_id = ?", (scenario_id,))
-  rubrics = [dict(r) for r in c.fethcall()]
+  rubrics = [dict(r) for r in c.fetchall()]
 
   con.close()
 
@@ -359,10 +380,10 @@ def fetch_all_sessions():
         # Data Cleaning & Feature Engineering
         if not df.empty:
             # 1. Create Status Column based on 'Score'
-            df['Status'] = df['Score'].applu(lambda x: "Passed" if x >= 80 else "Failed")
+            df['Status'] = df['Score'].apply(lambda x: "Passed" if x >= 80 else "Failed")
 
             # 2. Handle data formatting
-            df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d %H-%M')
+            df['date'] = pd.to_datetime(df['date'])
             # 3. Duration Placeholder
             df['Duration (Mins)'] = 15
     except ImportError:
@@ -688,7 +709,3 @@ def create_executive_summary(overall_stats, data_summary, llm):
     except Exception as e:
         logger.exception("Error generating AI Summary")
         raise
-
-    
-    
-    

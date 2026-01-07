@@ -519,7 +519,7 @@ def dashboard():
     with col_chart2:
         with st.container(border=True, height="stretch"):
             st.markdown("#### Readiness Level")
-            readiness_counts = df["Readiness"].value_counts().reset_index()
+            readiness_counts = df["readiness"].value_counts().reset_index()
             readiness_counts.columns = ["Level", "Count"]
             domain = ["Not Ready", "Training Needed", "Ready"]
             chart2 = alt.Chart(readiness_counts).mark_bar(size=60).encode(
@@ -585,22 +585,22 @@ def dashboard():
     st.write("")
     st.markdown("#### 🔎 View Trainee Report")
 
-    selected_session = st.selectbox("Select Session ID to View Report:", df["Session ID"])
+    selected_session = st.selectbox("Select Session ID to View Report:", df["session_id"])
 
     if selected_session:
-        session_data = df[df["Session ID"] == selected_session].iloc[0]
+        session_data = df[df["session_id"] == selected_session].iloc[0]
 
-        with st.expander(f"Report for {session_data['Trainee Name']} ({selected_session})", expanded=True):
+        with st.expander(f"Report for {session_data['trainee_name']} ({selected_session})", expanded=True):
             d_col1, d_col2 = st.columns(2)
             with d_col1:
                 st.write(f"**Role:** {session_data['Role']}")
-                st.write(f"**Date:** {session_data['Date'].strftime('%Y-%m-%d')}")
+                st.write(f"**Date:** {session_data['date'].strftime('%Y-%m-%d')}")
                 st.write(f"**Duration:** {session_data['Duration (Mins)']} Minutes")
             with d_col2:
                 # Dynamic Badge Color
                 color = "green" if session_data['Score'] > 80 else "red"
                 st.markdown(f"**Final Score:** :{color}[{session_data['Score']}/100]")
-                st.markdown(f"**Readiness:** {session_data['Readiness']}")
+                st.markdown(f"**Readiness:** {session_data['readiness']}")
 
             st.divider()
             st.markdown("**📝 PIC Notes:**")
@@ -642,7 +642,7 @@ def dashboard():
                     "pass_rate": (df[df["Status"] == "Passed"].shape[0] / len(df)) * 100
                 }
                 
-                report_path = create_executive_summary(stats, data_summary, llm)
+                report_path = create_executive_summary(stats, data_summary, st.session_state.llm)
                 st.session_state['exec_report_path'] = report_path
                 st.success("Executive Report Generated!")
 
