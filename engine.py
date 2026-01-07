@@ -360,7 +360,19 @@ def fetch_all_sessions():
 
     return df
 
+def fetch_session_details(session_id):
+    """
+    Fetches the Grade Breakdown for a specific session (Drill Down)
+    """
+    con = sqlite3.connect(DB_NAME)
+    con.row_factory = sqlite3.Row
+    c = con.cursor()
 
+    c.execute("SELECT * FROM session_grades WHERE session_id = ?", (session_id,))
+    grades = [dict(row) for row in c.fetchall()]
+
+    con.close()
+    return grades
 
 def build_system_prompt(phase: str, data: dict) -> str:
     """
