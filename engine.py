@@ -284,6 +284,50 @@ def get_scenario_config(scenario_id):
       "success_criteria": rubrics
   }
 
+def save_full_session(session_data, grade_list):
+    """
+    Transactional Save: Stores the Session Header AND the Detailed Grades.
+    """
+    con = sqlite3.connect(DB_NAME)
+    c = con.cursor()
+
+    # 1. Save Session Header
+    try:
+        c.execute('''INSERT INTO sessions
+            (session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log)
+            VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (
+                session_data['session_id'],     
+                session_data['trainee_name'],     
+                session_data['scenario_id'],     
+                session_data['date'],     
+                session_data['total_score'],
+                session_data['readiness'],     
+                str(session_data['chat_log'])
+            )
+        )
+
+        # 2. Save Detailed Grades
+        for grade in grade_list:
+            c.execute('''INSERT INTO session_grades
+                (session_id, criteria, score, evidence, feedback)
+                VALUES (?, ?, ?, ?, ?)''',
+                (
+                    session_data['session_id'],
+                    grade['criteria'],
+                    grade['score'],
+                    grade['evidence'],
+                    grade['feedback'],
+                )
+            )
+        con.commit()
+    except Exception as e:
+        print(f"Error saving session: {e}")
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
 def build_system_prompt(phase: str, data: dict) -> str:
     """
     Constructs the System Prompt dynamically based on the current Phase 
