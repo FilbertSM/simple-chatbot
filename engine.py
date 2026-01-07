@@ -196,6 +196,7 @@ def load_vectors():
 def get_retriever(vectorstore, k=3):
     return vectorstore.as_retriever(search_kwargs={"k": k})
 
+# NOTE: NOT USED
 DUMMY_DB = [  
   {
     "role_name": "TELLER_CASH",
@@ -249,11 +250,11 @@ DUMMY_DB = [
   }
 ]
 
-def fetch_roleplay_data(role_id: str) -> Dict:
+def fetch_roleplay_data(scenario_id: str) -> Dict:
     # Fetching the data
-    role_data = next((item for item in DUMMY_DB if item["role_name"] == role_id), None)
+    role_data = get_scenario_config(scenario_id)
     if not role_data:
-        raise ValueError(f"Role ID {role_id} not found.")
+        raise ValueError(f"Scenario ID {scenario_id} not found.")
     return role_data
 
 def get_scenario_config(scenario_id):
@@ -354,6 +355,16 @@ def fetch_all_sessions():
     '''
     try:
         df = pd.read_sql_query(query, con)
+
+        # Data Cleaning & Feature Engineering
+        if not df.empty:
+            # 1. Create Status Column based on 'Score'
+            df['Status'] = df['Score'].applu(lambda x: "Passed" if x >= 80 else "Failed")
+
+            # 2. Handle data formatting
+            df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d %H-%M')
+            # 3. Duration Placeholder
+            df['Duration (Mins)'] = 15
     except ImportError:
         # Fallback if pandas is not installed (returns list of dicts)
         con.row_factory = sqlite3.Row
@@ -388,8 +399,8 @@ def build_system_prompt(phase: str, data: dict) -> str:
     # Variables
     mentor_persona = data.get("mentor_persona")
     topic = data.get("topic")
-    simulation_persona = data.get("simulation_persona")
-    scenario_details = data.get("scenario_details")
+    simulation_persona = data.get("simulation_persona_text")
+    scenario_details = data.get("scenario_details_text")
     success_criteria = json.dumps(data.get("success_criteria"), indent=2)
 
     # ---------------------------------------------------------
@@ -552,10 +563,26 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
         logger.exception("Error querying the chain")
         raise
 
-def create_individual_report(session_data, ai_summary_text, grades_list):
+def create_individual_report(session_data, data_summary, grades_list):
     """
     Generates a Word doc for a single trainee with AI insights and Grading Table.
     """
+
+    # Generate AI Summary
+    try:
+        prompt = f"""
+        You are a Senior Training Consultant. Analyze the following training data CSV:
+        {data_summary}
+        
+        Write an Executive Summary (3-5 paragraphs) covering:
+        1. **Overall Performance Trends**: Are trainees generally passing?
+        2. **Common Weaknesses**: Identify roles or metrics with low scores.
+        3. **Strategic Recommendations**: What should the training team focus on next week?
+        """
+    except Exception as e:
+        logger.exception("Error generating AI Summary")
+        raise
+
     doc = Document()
     
     # --- HEADER ---
@@ -615,29 +642,53 @@ def create_individual_report(session_data, ai_summary_text, grades_list):
     doc.save(filename)
     return filename
 
-def create_executive_summary(overall_stats, ai_insight_text):
+def create_executive_summary(overall_stats, data_summary, llm):
     """
     Generates a Word doc for the PIC with aggregate insights.
     """
     doc = Document()
+    # Generate AI Summary
+    try:
+        template = f"""
+        You are a Senior Training Consultant. Analyze the following training data CSV:
+        {data_summary}
+        
+        Write an Executive Summary (3-5 paragraphs) covering:
+        1. **Overall Performance Trends**: Are trainees generally passing?
+        2. **Common Weaknesses**: Identify roles or metrics with low scores.
+        3. **Strategic Recommendations**: What should the training team focus on next week?
+        """
+
+        prompt = ChatPromptTemplate.from_template(template)
+        chain = prompt | llm | StrOutputParser()
+
+        result = chain.invoke({"data_summary": data_summary})
+
+        # --- HEADER ---
+        title = doc.add_heading("Executive Training Summary", 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d')}")
+
+        # --- SECTION 1: HIGH LEVEL STATS ---
+        doc.add_heading("1. Training Overview", level=1)
+        p = doc.add_paragraph()
+        p.add_run(f"Total Sessions: {overall_stats['total_sessions']}\n")
+        p.add_run(f"Average Score: {overall_stats['avg_score']:.2f}\n")
+        p.add_run(f"Pass Rate: {overall_stats['pass_rate']}%")
+
+        # --- SECTION 2: AI STRATEGIC ANALYSIS ---
+        doc.add_heading("2. AI Strategic Analysis", level=1)
+        doc.add_paragraph(result) 
+
+        # --- SAVE ---
+        filename = f"{REPORTS_DIR}/Executive_Summary_{datetime.now().strftime('%Y%m%d')}.docx"
+        doc.save(filename)
+        return filename
+        
+    except Exception as e:
+        logger.exception("Error generating AI Summary")
+        raise
+
     
-    # --- HEADER ---
-    title = doc.add_heading("Executive Training Summary", 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d')}")
     
-    # --- SECTION 1: HIGH LEVEL STATS ---
-    doc.add_heading("1. Training Overview", level=1)
-    p = doc.add_paragraph()
-    p.add_run(f"Total Sessions: {overall_stats['total_sessions']}\n")
-    p.add_run(f"Average Score: {overall_stats['avg_score']:.2f}\n")
-    p.add_run(f"Pass Rate: {overall_stats['pass_rate']}%")
     
-    # --- SECTION 2: AI STRATEGIC ANALYSIS ---
-    doc.add_heading("2. AI Strategic Analysis", level=1)
-    doc.add_paragraph(ai_insight_text) 
-    
-    # --- SAVE ---
-    filename = f"{REPORTS_DIR}/Executive_Summary_{datetime.now().strftime('%Y%m%d')}.docx"
-    doc.save(filename)
-    return filename

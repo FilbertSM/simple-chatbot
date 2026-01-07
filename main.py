@@ -3,13 +3,14 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 from dotenv import load_dotenv
-from engine import query_chain, load_vectors, get_retriever
+from engine import query_chain, load_vectors, get_retriever, create_executive_summary, create_individual_report, fetch_all_sessions, init_db
 from langchain_ollama.llms import OllamaLLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 st.set_page_config(page_title="GAIA", layout="wide")
 
 load_dotenv()
+init_db()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 def render_advisor_grid(data):
@@ -428,7 +429,14 @@ def dashboard():
     st.markdown("Monitor trainee performance, track active sessions, and generate audit reports.")
 
     # Load Data
-    df = dashboard_data()
+    df = fetch_all_sessions()
+    if df.empty:
+        st.info("No training sessions recorded yet")
+        return
+    
+    # Initialize Session State
+    if "llm" not in st.session_state:
+        st.session_state.llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview")
 
     # ==========================================
     # 1. Key Performance Indicators (KPI)
@@ -437,7 +445,10 @@ def dashboard():
     total_trainees = len(df)
     avg_score = df["Score"].mean()
     pass_rate = (df[df["Status"] == "Passed"].shape[0] / total_trainees) * 100
-    active_roles = df["Role"].value_counts().idxmax() # Most popular role
+    if "Role" in df and not df["Role"].dropna().empty:
+        active_roles = df["Role"].value_counts().idxmax() # Most popular role
+    else:
+        active_roles = "N/A"
 
     # Display Metrics in Columns
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -594,6 +605,102 @@ def dashboard():
             st.divider()
             st.markdown("**📝 PIC Notes:**")
             st.caption("Auto-generated summary from the Grading Phase would appear here...")
+
+    # ==========================================
+    # Sidebar: REPORT GENERATION
+    # ==========================================
+    st.divider()
+    st.subheader("3. Executive Reporting")
+    
+    col_gen, col_dl = st.columns([1, 2])
+
+    with st.sidebar:
+        if st.button("✨ Generate Report"):
+            with st.spinner("AI is analyzing all training records..."):
+                
+                # 1. PREPARE DATA FOR AI
+                # Convert dataframe to a string summary for the LLM
+                data_summary = df.to_csv(index=False)
+                
+                # 2. PROMPT FOR AI
+                prompt = f"""
+                You are a Senior Training Consultant. Analyze the following training data CSV:
+                {data_summary}
+                
+                Write an Executive Summary (3-5 paragraphs) covering:
+                1. **Overall Performance Trends**: Are trainees generally passing?
+                2. **Common Weaknesses**: Identify roles or metrics with low scores.
+                3. **Strategic Recommendations**: What should the training team focus on next week?
+                """
+                
+                ai_insight = st.session_state.llm.invoke(prompt).content
+                
+                # 4. GENERATE DOCX
+                stats = {
+                    "total_sessions": len(df),
+                    "avg_score": df["Score"].mean(),
+                    "pass_rate": (df[df["Status"] == "Passed"].shape[0] / len(df)) * 100
+                }
+                
+                report_path = create_executive_summary(stats, data_summary, llm)
+                st.session_state['exec_report_path'] = report_path
+                st.success("Executive Report Generated!")
+
+        if 'exec_report_path' in st.session_state:
+            with open(st.session_state['exec_report_path'], "rb") as f:
+                st.download_button(
+                    label="📄 Download Executive Report (.docx)",
+                    data=f,
+                    file_name="Executive_Summary.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+    
+    with col_gen:
+        if st.button("✨ Generate AI Executive Insight"):
+            with st.spinner("AI is analyzing all training records..."):
+                
+                # 1. PREPARE DATA FOR AI
+                # Convert dataframe to a string summary for the LLM
+                data_summary = df.to_csv(index=False)
+                
+                # 2. PROMPT FOR AI
+                prompt = f"""
+                You are a Senior Training Consultant. Analyze the following training data CSV:
+                {data_summary}
+                
+                Write an Executive Summary (3-5 paragraphs) covering:
+                1. **Overall Performance Trends**: Are trainees generally passing?
+                2. **Common Weaknesses**: Identify roles or metrics with low scores.
+                3. **Strategic Recommendations**: What should the training team focus on next week?
+                """
+                
+                # 3. CALL LLM (Reusing your existing LLM setup)
+                # Ensure you have st.session_state.llm initialized or init a new one here
+                if "llm" not in st.session_state:
+                     st.session_state.llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview")
+                
+                ai_insight = st.session_state.llm.invoke(prompt).content
+                
+                # 4. GENERATE DOCX
+                stats = {
+                    "total_sessions": len(df),
+                    "avg_score": df["Score"].mean(),
+                    "pass_rate": (df[df["Status"] == "Passed"].shape[0] / len(df)) * 100
+                }
+                
+                report_path = create_executive_summary(stats, ai_insight)
+                st.session_state['exec_report_path'] = report_path
+                st.success("Executive Summary Generated!")
+
+    with col_dl:
+        if 'exec_report_path' in st.session_state:
+            with open(st.session_state['exec_report_path'], "rb") as f:
+                st.download_button(
+                    label="📄 Download Executive Summary (.docx)",
+                    data=f,
+                    file_name="Executive_Summary.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
 
 def test():
     st.title("Test")
