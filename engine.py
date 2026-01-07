@@ -250,6 +250,40 @@ def fetch_roleplay_data(role_id: str) -> Dict:
         raise ValueError(f"Role ID {role_id} not found.")
     return role_data
 
+def get_scenario_config(scenario_id):
+  """
+  Retrieves the full configuration (Personas + Rubrics) for the AI Engine.
+  Replacing 'fetch_roleplay_data' logic.
+  """
+  con = sqlite3.connect(DB_NAME)
+  con.row_factory = sqlite3.Row
+  c = con.cursor()
+
+  # 1. Get Main Scenario Data
+  c.execute("SELECT * FROM scenarios WHERE scenario_id = ?", (scenario_id,))
+  row = c.fetchone()
+
+  if not row:
+    con.close()
+    return None
+  
+  scenario_data = dict[row]
+
+  # 2. Get Rubrics List
+  c.execute("SELECT criteria, description FROM grading_rubrics WHERE scenario_id = ?", (scenario_id,))
+  rubrics = [dict(r) for r in c.fethcall()]
+
+  con.close()
+
+  return {
+      "role_name": scenario_data["scenario_id"],
+      "topic": scenario_data["topic"],
+      "mentor_persona": scenario_data["mentor_persona"],
+      "simulation_persona_text": scenario_data["simulation_persona"],
+      "scenario_detais_text": scenario_data["scenario_details"],
+      "success_criteria": rubrics
+  }
+
 def build_system_prompt(phase: str, data: dict) -> str:
     """
     Constructs the System Prompt dynamically based on the current Phase 

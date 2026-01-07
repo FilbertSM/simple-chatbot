@@ -408,8 +408,8 @@ def dashboard_data():
             "Indra Bekti", "Joko Anwar"
         ],
         "Role": [
-            "Teller", "CS", "CS", "Teller", "Loan Officer", 
-            "CS", "Teller", "Loan Officer", "CS", "Teller"
+            "CSO", "CSO", "CSO", "Teller", "Loan Officer", 
+            "CSO", "Teller", "Loan Officer", "CSO", "Teller"
         ],
         "Date": pd.date_range(start="2024-01-01", periods=10, freq="D"),
         "Score": [85, 45, 92, 78, 60, 88, 95, 55, 72, 81],
