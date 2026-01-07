@@ -369,7 +369,8 @@ def fetch_all_sessions():
             sc.topic as Role,
             s.date,
             s.total_score as Score,
-            s.readiness
+            s.readiness,
+            sc.role_id
         FROM sessions s
         JOIN scenarios sc ON s.scenario_id = sc.scenario_id
         ORDER BY s.date DESC
@@ -678,6 +679,8 @@ def create_executive_summary(overall_stats, data_summary, llm):
         1. **Overall Performance Trends**: Are trainees generally passing?
         2. **Common Weaknesses**: Identify roles or metrics with low scores.
         3. **Strategic Recommendations**: What should the training team focus on next week?
+
+        Use Bahasa Indonesia to generate the executive summary
         """
 
         prompt = ChatPromptTemplate.from_template(template)

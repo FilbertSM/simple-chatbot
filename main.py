@@ -445,8 +445,8 @@ def dashboard():
     total_trainees = len(df)
     avg_score = df["Score"].mean()
     pass_rate = (df[df["Status"] == "Passed"].shape[0] / total_trainees) * 100
-    if "Role" in df and not df["Role"].dropna().empty:
-        active_roles = df["Role"].value_counts().idxmax() # Most popular role
+    if "role_id" in df and not df["role_id"].dropna().empty:
+        active_roles = df["role_id"].value_counts().idxmax() # Most popular role
     else:
         active_roles = "N/A"
 
@@ -519,6 +519,7 @@ def dashboard():
     with col_chart2:
         with st.container(border=True, height="stretch"):
             st.markdown("#### Readiness Level")
+            df["readiness"] = df["Score"].apply(lambda x: "Ready" if x > 80 else ("Training Needed" if x > 60 else "Not Ready"))
             readiness_counts = df["readiness"].value_counts().reset_index()
             readiness_counts.columns = ["Level", "Count"]
             domain = ["Not Ready", "Training Needed", "Ready"]
@@ -553,7 +554,7 @@ def dashboard():
 
     # Filter Logic
     if search_query:
-        filtered_df = df[df["Trainee Name"].str.contains(search_query, case=False)]
+        filtered_df = df[df["trainee_name"].str.contains(search_query, case=False)]
     else:
         filtered_df = df
 
@@ -618,22 +619,8 @@ def dashboard():
         if st.button("✨ Generate Report"):
             with st.spinner("AI is analyzing all training records..."):
                 
-                # 1. PREPARE DATA FOR AI
                 # Convert dataframe to a string summary for the LLM
                 data_summary = df.to_csv(index=False)
-                
-                # 2. PROMPT FOR AI
-                prompt = f"""
-                You are a Senior Training Consultant. Analyze the following training data CSV:
-                {data_summary}
-                
-                Write an Executive Summary (3-5 paragraphs) covering:
-                1. **Overall Performance Trends**: Are trainees generally passing?
-                2. **Common Weaknesses**: Identify roles or metrics with low scores.
-                3. **Strategic Recommendations**: What should the training team focus on next week?
-                """
-                
-                ai_insight = st.session_state.llm.invoke(prompt).content
                 
                 # 4. GENERATE DOCX
                 stats = {
