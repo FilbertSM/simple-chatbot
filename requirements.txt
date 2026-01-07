@@ -20,6 +20,7 @@ pandas
 
 # Environment Variables
 python-dotenv
+python-docx
 
 # Typing & Utilities
 pydantic
