@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import json
 import logging
 import sqlite3
@@ -327,6 +328,39 @@ def save_full_session(session_data, grade_list):
         raise
     finally:
         con.close()
+
+def fetch_all_sessions():
+    """
+    Returns all session headers for the Dashboard Table.
+    Joins with Scenarios to get Topic names.
+    """
+    con = sqlite3.connect(DB_NAME)
+    query = '''
+        SELECT
+            s.session_id,
+            s.trainee_name,
+            sc.topic as Role,
+            s.date,
+            s.total_score as Score,
+            s.readiness
+        FROM sessions s
+        JOIN scenarios sc ON s.scenario_id = sc.scenario_id
+        ORDER BY s.date DESC
+    '''
+    try:
+        df = pd.read_sql_query(query, con)
+    except ImportError:
+        # Fallback if pandas is not installed (returns list of dicts)
+        con.row_factory = sqlite3.Row
+        c = con.cursor()
+        c.execute(query)
+        df = [dict(row) for row in c.fetchall()]
+    finally:
+        con.close()
+
+    return df
+
+
 
 def build_system_prompt(phase: str, data: dict) -> str:
     """
