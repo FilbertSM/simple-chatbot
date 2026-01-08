@@ -276,6 +276,10 @@ def new_cxo_page():
             st.session_state.llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview")
             # st.session_state.llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
 
+    # Initialize Tutor Counter
+    if "tutoring_counter" not in st.session_state:
+        st.session_state.tutoring_counter = 0
+
     # ==========================================
     # 2. RENDER HISTORY
     # ==========================================
@@ -325,6 +329,10 @@ def new_cxo_page():
         st.chat_message("user").markdown(user_input)
         st.session_state.messages.append({"role": "user", "content": user_input})
 
+        # Track interaction on Tutoring Phase
+        if st.session_state.phase == "TUTORING":
+            st.session_state.tutoring_counter += 1
+
         # Generate API Response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -373,20 +381,25 @@ def new_cxo_page():
             """)
             st.divider()
             if st.button("📖 Start Session", key="start_session"):
-                st.session_state.phase = "GREETING"
+                st.session_state.phase = "TUTORING"
                 st.session_state.trigger_ai_greeting = True
+                st.session_state.tutoring_counter = 0
                 st.rerun()  
         elif st.session_state.phase == "GREETING":
             if st.button("🎓 Start Tutoring", key="start_tutoring"):
                 st.session_state.phase = "TUTORING"
                 st.session_state.trigger_ai_greeting = True
+                st.session_state.tutoring_counter = 0
                 st.rerun()
         elif st.session_state.phase == "TUTORING":
-            if st.button("🚀 Start Roleplay", key="start_roleplay"):
-                st.session_state.phase = "ROLEPLAY"
-                st.session_state.messages = []
-                st.session_state.trigger_ai_greeting = True
-                st.rerun()
+            REQUIRED_INTERACTIONS = 1
+            if st.session_state.tutoring_counter >= REQUIRED_INTERACTIONS:
+                if st.button("🚀 Start Roleplay", key="start_roleplay"):
+                    st.session_state.phase = "ROLEPLAY"
+                    st.session_state.messages_record = st.session_state.messages
+                    st.session_state.messages = []
+                    st.session_state.trigger_ai_greeting = True
+                    st.rerun()
             # st.info("Ask questions to deepen understanding")
         elif st.session_state.phase == "ROLEPLAY":
             if st.button("💯 Finish & Grade", key="finish_grade"):
@@ -618,6 +631,7 @@ def dashboard():
     st.dataframe(
         data=filtered_df,
         use_container_width=True,
+        column_order=("session_id", "trainee_name", "role_id", "Role", "date", "Duration (Mins)", "readiness", "Status", "Score"),
         column_config={
             "Score": st.column_config.ProgressColumn(
                 "Score",
@@ -630,10 +644,22 @@ def dashboard():
                 validate="^(Passed|Failed)$",
                 
             ),
-            "Session ID": st.column_config.TextColumn(
+            "session_id": st.column_config.TextColumn(
                 "Session Record",
                 help="Double click to copy ID"
-            )
+            ),
+            "trainee_name": st.column_config.TextColumn(
+                "Trainee's Name"
+            ),
+            "Role": st.column_config.TextColumn(
+                "Topic"
+            ),
+            "readiness": st.column_config.TextColumn(
+                "Readiness"
+            ),
+            "role_id": st.column_config.TextColumn(
+                "Roleplay"
+            ),
         }, hide_index=True
     )
 
@@ -647,6 +673,7 @@ def dashboard():
 
     if selected_session:
         session_data = df[df["session_id"] == selected_session].iloc[0]
+        file_path = session_data["report_path"]
 
         with st.expander(f"Report for {session_data['trainee_name']} ({selected_session})", expanded=True):
             d_col1, d_col2 = st.columns(2)
@@ -661,15 +688,22 @@ def dashboard():
                 st.markdown(f"**Readiness:** {session_data['readiness']}")
 
             st.divider()
-            st.markdown("**📝 PIC Notes:**")
-            st.caption("Auto-generated summary from the Grading Phase would appear here...")
+
+            if file_path and os.path.exists(file_path):
+                with open(file_path, "rb") as f:
+                    st.download_button(
+                        label="📥 Download Individual Report (.docx)",
+                        data=f,
+                        file_name=f"Report_{selected_session}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+            else:
+                st.warning("⚠️ Report file not found (it may have been deleted).")
 
     # ==========================================
     # Sidebar: REPORT GENERATION
     # ==========================================
-    st.divider()
-    st.subheader("3. Executive Reporting")
-
     with st.sidebar:
         if st.button("✨ Generate Report"):
             with st.spinner("AI is analyzing all training records..."):

@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import json
+import time
 import logging
 import sqlite3
 from datetime import datetime
@@ -31,7 +32,10 @@ llm = OllamaLLM(model="qwen3-vl:235b-cloud", base_url="http://localhost:11434")
 # Initialize DB
 def init_db():
   """Initializes the SQLite database with the sessions table."""
-  con = sqlite3.connect(DB_NAME)
+  con = sqlite3.connect(DB_NAME, timeout=30, check_same_thread=False)
+  # improve concurrency
+  con.execute("PRAGMA journal_mode=WAL;")
+  con.execute("PRAGMA synchronous=NORMAL;")
   c = con.cursor()
   # Table: Roles (Categories)
   c.execute('''CREATE TABLE IF NOT EXISTS roles (
@@ -107,7 +111,9 @@ def seed_db():
     Populates the DB with initial Role/Scenario data AND Dummy Sessions
     to ensure the Dashboard functions correctly out-of-the-box.
     """
-    con = sqlite3.connect(DB_NAME)
+    con = sqlite3.connect(DB_NAME, timeout=30, check_same_thread=False)
+    con.execute("PRAGMA journal_mode=WAL;")
+    con.execute("PRAGMA synchronous=NORMAL;")
     c = con.cursor()
 
     # Check if roles exist to avoid duplicates
@@ -157,18 +163,18 @@ def seed_db():
         
         # Format: session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log
         dummy_sessions = [
-            ("SES-101", "Andi Saputra", "TELLER_CASH", "2024-10-01 09:30", 88, "SIAP TERJUN", "System: Welcome..."),
-            ("SES-102", "Budi Santoso", "CS_COMPLAINT", "2024-10-02 10:15", 55, "BELUM SIAP", "System: Welcome..."),
-            ("SES-103", "Citra Lestari", "TELLER_CASH", "2024-10-03 11:00", 92, "SIAP TERJUN", "System: Welcome..."),
-            ("SES-104", "Dewi Persik", "CS_COMPLAINT", "2024-10-04 13:45", 76, "BUTUH LATIHAN", "System: Welcome..."),
-            ("SES-105", "Eko Patrio", "TELLER_CASH", "2024-10-05 14:30", 65, "BUTUH LATIHAN", "System: Welcome..."),
-            ("SES-106", "Fajar Hadi", "CS_COMPLAINT", "2024-10-06 15:00", 40, "BELUM SIAP", "System: Welcome..."),
-            ("SES-107", "Gita Gutawa", "TELLER_CASH", "2024-10-07 08:30", 95, "SIAP TERJUN", "System: Welcome..."),
-            ("SES-108", "Hesti Purwadinata", "CS_COMPLAINT", "2024-10-07 09:00", 82, "SIAP TERJUN", "System: Welcome..."),
-            ("SES-109", "Indra Bekti", "TELLER_CASH", "2024-10-08 10:45", 70, "BUTUH LATIHAN", "System: Welcome..."),
-            ("SES-110", "Joko Anwar", "CS_COMPLAINT", "2024-10-08 11:30", 89, "SIAP TERJUN", "System: Welcome...")
+            ("SES-101", "Andi Saputra", "TELLER_CASH", "2024-10-01 09:30", 88, "SIAP TERJUN", "System: Welcome...", "Unavailable"),
+            ("SES-102", "Budi Santoso", "CS_COMPLAINT", "2024-10-02 10:15", 55, "BELUM SIAP", "System: Welcome...", "Unavailable"),
+            ("SES-103", "Citra Lestari", "TELLER_CASH", "2024-10-03 11:00", 92, "SIAP TERJUN", "System: Welcome...", "Unavailable"),
+            ("SES-104", "Dewi Persik", "CS_COMPLAINT", "2024-10-04 13:45", 76, "BUTUH LATIHAN", "System: Welcome...", "Unavailable"),
+            ("SES-105", "Eko Patrio", "TELLER_CASH", "2024-10-05 14:30", 65, "BUTUH LATIHAN", "System: Welcome...", "Unavailable"),
+            ("SES-106", "Fajar Hadi", "CS_COMPLAINT", "2024-10-06 15:00", 40, "BELUM SIAP", "System: Welcome...", "Unavailable"),
+            ("SES-107", "Gita Gutawa", "TELLER_CASH", "2024-10-07 08:30", 95, "SIAP TERJUN", "System: Welcome...", "Unavailable"),
+            ("SES-108", "Hesti Purwadinata", "CS_COMPLAINT", "2024-10-07 09:00", 82, "SIAP TERJUN", "System: Welcome...", "Unavailable"),
+            ("SES-109", "Indra Bekti", "TELLER_CASH", "2024-10-08 10:45", 70, "BUTUH LATIHAN", "System: Welcome...", "Unavailable"),
+            ("SES-110", "Joko Anwar", "CS_COMPLAINT", "2024-10-08 11:30", 89, "SIAP TERJUN", "System: Welcome...", "Unavailable")
         ]
-        c.executemany("INSERT INTO sessions VALUES (?,?,?,?,?,?,?)", dummy_sessions)
+        c.executemany("INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?)", dummy_sessions)
 
         # 5. Insert Dummy Grades (Linked to Sessions)
         # Format: session_id, criteria, score, evidence, feedback
@@ -464,18 +470,20 @@ def build_system_prompt(phase: str, data: dict) -> str:
         return f"""
         ### SYSTEM ROLE & IDENTITY
         You are {mentor_persona}.
-        Topic: {topic}.
+        Your goal is to guide a trainee through a learning session about: {topic}.
 
-        ### CURRENT OBJECTIVE: PHASE 3 - TUTORING SESSION (ASSESSMENT)
+        ### CURRENT OBJECTIVE: PHASE 1 - TUTORING SESSION (ASSESSMENT)
         **Goal:** Gauge the trainee's understanding of the topic using the Knowledge Base.
 
         **INSTRUCTIONS:**
-        1. **Ask Questions:** Ask 2-3 specific, challenging questions about {topic} to test their theoretical knowledge.
-        2. **Answer Questions:** Allow the trainee to ask questions back. Answer them clearly using the **[CONTEXT/KNOWLEDGE BASE]** provided below.
-        3. **Tone:** Be helpful, educational, and supportive.
-        4. **Correction:** If they answer incorrectly, correct them gently using facts from the Knowledge Base.
-        5. **Transition (CRITICAL):** - Once you are satisfied with their understanding (or after 3 interactions), say: "We are now ready for the simulation."
-          - **Instruct them explicitly** to click the button **'🚀 Start Roleplay Simulation'** below to enter the scenario.
+        1. **Greet:** Welcome the trainee professionally. State your name and role clearly.
+        2. **Ask Questions:** Ask 2-3 specific, challenging questions about {topic} to test their theoretical knowledge.
+        3. **Answer Questions:** Allow the trainee to ask questions back. Answer them clearly using the **[CONTEXT/KNOWLEDGE BASE]** provided below.
+        4. **Tone:** Be helpful, educational, and supportive.
+        5. **Correction:** If they answer incorrectly, correct them gently using facts from the Knowledge Base.
+        6. **Transition (CRITICAL):** - Once you are satisfied with their understanding (or after 3 interactions), say: "We are now ready for the simulation."
+        7. **Explain the Case:** Briefly explain that the roleplay session case about {scenario_details}
+        7. **Instruct them explicitly** to click the button **'🚀 Start Roleplay Simulation'** below to enter the scenario.
 
         **CONSTRAINT:** Do NOT start the Roleplay simulation yet. Stay in the Tutoring phase.
         """
@@ -492,7 +500,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
         ### SCENARIO CONTEXT
         {scenario_details}
 
-        ### CURRENT OBJECTIVE: PHASE 4 - ROLEPLAY SIMULATION
+        ### CURRENT OBJECTIVE: PHASE 2 - ROLEPLAY SIMULATION
         **Goal:** Test the trainee's application of skills in a realistic scenario.
 
         **CONSTRAINTS & BEHAVIOR:**
@@ -513,7 +521,7 @@ def build_system_prompt(phase: str, data: dict) -> str:
         ### SYSTEM MODE SWITCH: AUDITOR
         Revert to your original persona: {mentor_persona}.
 
-        ### CURRENT OBJECTIVE: PHASE 5 - SUMMARY & SCORING
+        ### CURRENT OBJECTIVE: PHASE 3 - SUMMARY & SCORING
         **Goal:** Provide detailed feedback on the simulation and assess real-world readiness.
 
         **INSTRUCTIONS:**
