@@ -300,7 +300,7 @@ def new_cxo_page():
     # 3. AUTO-TRIGGER (AI Speaks First)
     # ==========================================
 
-    role_id = "CS_COMPLAINT" # Change the variable into the respective role
+    role_id = "CS_WARKAT" # Change the variable into the respective role
     if st.session_state.get("trigger_ai_greeting"):
         with st.chat_message("assistant"):
             with st.spinner("AI is preparing..."):
@@ -413,7 +413,7 @@ def new_cxo_page():
                 with st.spinner("Analyzing performance and saving the session"):
                     
                     # 1. Extract JSON from AI (Parsing the grading output)
-                    last_msg = st.session_state[-1]["content"]
+                    last_msg = st.session_state.messages[-1]["content"]
                     try:
                         # Find JSON content between braces
                         json_matches = re.search(r'\{.*\}', last_msg, re.DOTALL)

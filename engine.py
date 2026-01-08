@@ -143,6 +143,13 @@ def seed_db():
                 "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'.",
                 "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank.", 
                 "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing)."
+            ),
+            (
+                "CS_WARKAT", "CS", 
+                "Layanan Warkat (Edukasi Nasabah Awam)",
+                "Anda adalah Senior CS Officer. Fokus Anda adalah 'Customer Education' dan 'Communication Skill'. Anda ingin melihat apakah Trainee bisa menjelaskan istilah perbankan yang rumit (seperti SLA, Cut-off, Autodebet) menjadi bahasa manusiawi yang mudah dimengerti oleh orang awam.",
+                "Anda adalah 'Pak Santoso', seorang pensiunan yang baru mencoba membuka usaha toko kelontong. Gaya bicara Anda sangat sopan, pelan, dan kebapakan. Anda sangat awam soal bank. Anda berpikir mengambil buku Cek itu sama seperti membeli buku tulis di toko: Bayar uangnya di kasir, lalu barangnya langsung dibawa pulang saat itu juga.", 
+                "Pak Santoso menyerahkan resi dan uang tunai Rp 275.000 di meja. Beliau meminta buku cek-nya sekarang karena mau dipakai bayar supplier nanti sore. Beliau tidak marah, hanya benar-benar bingung kenapa 'beli buku' saja harus menunggu besok dan tidak bisa bayar tunai. Tantangan: Jelaskan prosedur tanpa membuat nasabah merasa bodoh."
             )
         ]
         c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
@@ -152,7 +159,9 @@ def seed_db():
             ("TELLER_CASH", "Sikap Profesional & Tenang", "Trainee tidak boleh terlihat gugup."),
             ("TELLER_CASH", "Pemilihan Kata (Euphemism)", "DILARANG menggunakan kata 'PALSU' sebelum verifikasi."),
             ("CS_COMPLAINT", "Immediate Security Action", "Langkah pertama Trainee HARUS melakukan pemblokiran."),
-            ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu.")
+            ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu."),
+            ("CS_WARKAT", "Informasi SLA (Waktu)", "Menjelaskan waktu pengambilan (H+1/H+2) dengan bahasa halus. Contoh: 'Mohon ditunggu ya Pak, karena bukunya perlu kami cetak khusus atas nama Bapak, jadi baru siap besok'."),
+            ("CS_WARKAT", "Edukasi Pembayaran (Non-Tunai)", "Menolak pembayaran tunai dengan sopan dan menjelaskan sistem Autodebet. Contoh: 'Untuk biayanya Bapak tidak perlu repot bayar tunai disini, nanti otomatis terpotong dari saldo tabungan Bapak'."),
         ]
         c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
 
@@ -616,6 +625,11 @@ def create_individual_report(session_data, grades_list, chat_history, llm):
     doc = Document()
 
     try:
+        # Prepare the context for the AI
+        grading_summary = json.dumps(grades_list, indent=2)
+        role_played = session_data.get('scenario_id', 'unknown')
+        score = session_data.get('total_score', 0)
+
         # ==========================================
         # 1. GENERATE AI INSIGHT (The New Logic)
         # ==========================================
@@ -634,15 +648,25 @@ def create_individual_report(session_data, grades_list, chat_history, llm):
         4. Tone: Professional, constructive, and encouraging.
         """
 
-        # Prepare the context for the AI
-        grading_summary = json.dumps(grades_list, indent=2)
-        role_played = session_data.get('scenario_id', 'unknown')
-        score = session_data.get('total_score', 0)
+        # Invoke LLM (Handle different response types safely)
+        try:
+            response = llm.invoke(template)
+            # Normalize response -> always a string for docx
+            if hasattr(response, "content"):
+                content = response.content
+            else:
+                content = response
+            if isinstance(content, (dict, list)):
+                result = json.dumps(content, indent=2, ensure_ascii=False)
+            else:
+                result = str(content)
+        except Exception as e:
+            result = f"Could not generate AI insight: {str(e)}"
 
-        prompt = ChatPromptTemplate.from_template(template)
-        chain = prompt | llm | StrOutputParser()
+        # prompt = ChatPromptTemplate.from_template(template)
+        # chain = prompt | llm | StrOutputParser()
 
-        result = chain.invoke({"role_played": role_played, "score": score, "grading_summary": grading_summary})
+        # result = chain.invoke({"role_played": role_played, "score": score, "grading_summary": grading_summary})
 
         # --- HEADER ---
         header = doc.add_heading(f"Trainee Performance Report", 0)
