@@ -263,6 +263,9 @@ def new_cxo_page():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+    if "messages_record" not in st.session_state:
+        st.session_state.messages_record = []
+
     # Initialize the Phase if it doesn't exist
     if "phase" not in st.session_state:
         st.session_state.phase = "START"
@@ -303,6 +306,7 @@ def new_cxo_page():
     role_id = "CS_WARKAT" # Change the variable into the respective role
     if st.session_state.get("trigger_ai_greeting"):
         with st.chat_message("assistant"):
+            # 1. Call the AI
             with st.spinner("AI is preparing..."):
                 response_text = query_chain(
                     retriever=st.session_state.retriever,
@@ -312,9 +316,25 @@ def new_cxo_page():
                     current_phase=st.session_state.phase,
                     chat_history=st.session_state.messages
                 )
-                
-                st.markdown(response_text)
-                st.session_state.messages.append({"role": "assistant", "content": response_text})
+
+                # 2. Separate Displays vs Data
+                if "|||JSON_DATA|||" in response_text:
+                    parts = response_text.split("|||JSON_DATA|||")
+                    display_text = parts[0].strip()
+                    json_text = parts[1].strip()
+                    
+                    # Store JSON securely in a dedicated variable
+                    st.session_state.grading_result = json_text
+                else:
+                    # Fallback if AI forgets separator
+                    display_text = response_text
+                    st.session_state.grading_result = None
+
+                # 3. Render & Save only the CLEAN text to history
+                st.markdown(display_text)
+                st.session_state.messages.append({"role": "assistant", "content": display_text})
+                # st.markdown(response_text)
+                # st.session_state.messages.append({"role": "assistant", "content": response_text})
                 st.session_state.trigger_ai_greeting = False
     
     # ==========================================
@@ -396,7 +416,7 @@ def new_cxo_page():
             if st.session_state.tutoring_counter >= REQUIRED_INTERACTIONS:
                 if st.button("🚀 Start Roleplay", key="start_roleplay"):
                     st.session_state.phase = "ROLEPLAY"
-                    st.session_state.messages_record = st.session_state.messages
+                    st.session_state.messages_record = st.session_state.messages[:]
                     st.session_state.messages = []
                     st.session_state.trigger_ai_greeting = True
                     st.rerun()
@@ -412,17 +432,20 @@ def new_cxo_page():
                 # Logic to create a record and report
                 with st.spinner("Analyzing performance and saving the session"):
                     
-                    # 1. Extract JSON from AI (Parsing the grading output)
-                    last_msg = st.session_state.messages[-1]["content"]
-                    try:
-                        # Find JSON content between braces
-                        json_matches = re.search(r'\{.*\}', last_msg, re.DOTALL)
-                        if json_matches:
-                            metrics = json.loads(json_matches.group())
-                        else:
-                            metrics = {}
-                    except Exception as e:
-                        st.error(f"Error parsing AI grades: {e}")
+                    # 1. Retrieve the cached JSON
+                    st.session_state.messages_record.extend(st.session_state.messages)
+                    raw_json = st.session_state.get("grading_result", None)
+                    
+                    metrics = {}
+                    if raw_json:
+                        try:
+                            # Cleanup markdown wrappers if present
+                            clean_json = raw_json.replace("```json", "").replace("```", "").strip()
+                            metrics = json.loads(clean_json)
+                        except Exception as e:
+                            st.error(f"Error parsing saved JSON: {e}")
+                    else:
+                        st.error("No grading data found. Please restart the grading phase.")
 
                     # 2. Prepare Data Objects
                     # Header Data
@@ -434,7 +457,7 @@ def new_cxo_page():
                         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "total_score": metrics.get("total_score", 0),
                         "readiness": metrics.get("readiness", "Undetected"),
-                        "chat_log": json.dumps(st.session_state.messages)
+                        "chat_log": json.dumps(st.session_state.messages_record)
                     }
 
                     # Detailed Grades List

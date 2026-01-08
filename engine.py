@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 import json
 import time
@@ -535,15 +536,12 @@ def build_system_prompt(phase: str, data: dict) -> str:
 
         **INSTRUCTIONS:**
         Review the conversation history (focusing on the Roleplay phase).
-        1. Generate a Grading Table based on the rubric.
+        1. Generate a Markdown Grading Table based on the rubric with exactly these columns:
+        | Criteria | Evidence (Quote) | Feedback | Score (0-100) |
         2. Determine the **Readiness Level (Tingkat Kesiapan)** of the trainee to face this scenario in real life.
 
         **GRADING RUBRIC:**
         {success_criteria}
-
-        **OUTPUT FORMAT:**
-        Generate a Markdown table with exactly these columns:
-        | Criteria | Evidence (Quote) | Feedback | Score (0-100) |
 
         **Readiness Level:**
         Analyze the total performance and assign a status:
@@ -554,6 +552,21 @@ def build_system_prompt(phase: str, data: dict) -> str:
         *Display it clearly below the table like this:*
         > **Status Kesiapan:** [SIAP TERJUN / BUTUH LATIHAN / BELUM SIAP]
         > **Kesimpulan:** [One sentence explaining why]
+
+        **OUTPUT FORMAT:**
+        **Part 1: The Review**
+           - Start with a professional closing remark.
+           - Present the Grading Table in Markdown.
+           - State the Readiness Level clearly.
+        **Part 2: The System Data**
+           - You MUST output the separator string: "|||JSON_DATA|||"
+           - Immediately following the separator, output the raw JSON object for the database.
+        **JSON SCHEMA:**
+        {{
+            "total_score": <int>,
+            "readiness": "<string>",
+            "grades": [ {{ "criteria": "...", "score": <int>, "evidence": "...", "feedback": "..." }} ]
+        }}
 
         **CLOSING:**
         Offer a final encouraging remark to the trainee.
@@ -708,10 +721,52 @@ def create_individual_report(session_data, grades_list, chat_history, llm):
 
         doc.add_paragraph() # Spacer
 
-        # --- SECTION 2: AI MENTOR INSIGHT (The "Executive Summary" equivalent) ---
+       # --- SECTION 2: AI MENTOR INSIGHT ---
         doc.add_heading("2. Mentor Readiness Assessment", level=1)
-        insight_p = doc.add_paragraph(result)
-        insight_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # 1. PARSE THE JSON CONTENT
+        # The content is wrapped in a JSON structure, so we must extract the 'text' field.
+        try:
+            # Convert the string string into a Python list/dictionary
+            data = json.loads(result)
+            
+            # Based on Source 6, the structure is a list with one object: [{"text": "..."}]
+            if isinstance(data, list) and len(data) > 0:
+                raw_text = data[0].get("text", "")
+            else:
+                raw_text = str(result) # Fallback
+        except json.JSONDecodeError:
+            # If 'result' happens to be plain text already, just use it
+            raw_text = str(result)
+
+        # 2. FORMATTING LOGIC (Markdown to Docx)
+        # We split the text by newlines so we can make real paragraphs
+        lines = raw_text.split('\n')
+
+        for line in lines:
+            line = line.strip()
+            
+            # Skip empty lines to avoid huge gaps
+            if not line:
+                continue
+                
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            
+            # 3. HANDLE BOLDING (**Text**)
+            # We split the line by the bold syntax to separate normal text from bold text
+            parts = re.split(r'(\*\*.*?\*\*)', line)
+            
+            for part in parts:
+                if part.startswith('**') and part.endswith('**'):
+                    # This segment is bold
+                    clean_text = part.replace('**', '')
+                    run = p.add_run(clean_text)
+                    run.bold = True
+                else:
+                    # This segment is normal text
+                    if part: # Check if part is not empty
+                        p.add_run(part)
 
         # --- SECTION 3: GRADING MATRIX ---
         doc.add_heading("3. Grading Breakdown", level=1)
