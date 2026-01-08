@@ -88,91 +88,101 @@ def init_db():
   )''')
 
   con.commit()
+
+  # CHECK DATA EXISTENCE
+  c.execute("SELECT count(*) FROM roles")
+  data_count = c.fetchone()[0]
+  
   con.close()
 
-  seed_db()
+  # Only seed if roles table is empty
+  if data_count == 0:
+      logger.info("Database is empty. Seeding initial data...")
+      seed_db()
+  else:
+      logger.info("Database already contains data. Skipping seed.")
 
 def seed_db():
-  """
-  Populates the DB with initial Role/Scenario data AND Dummy Sessions
-  to ensure the Dashboard functions correctly out-of-the-box.
-  """
-  con = sqlite3.connect(DB_NAME)
-  c = con.cursor()
-  
-  # Check if roles exist to avoid duplicates
-  c.execute("SELECT count(*) FROM roles")
-  if c.fetchone()[0] == 0:
-      print("Seeding Core Data (Roles, Scenarios, Rubrics)...")
-      
-      # 1. Insert Roles
-      roles = [
-          ("CS", "Customer Service"),
-          ("TELLER", "Bank Teller")
-      ]
-      c.executemany("INSERT INTO roles VALUES (?,?)", roles)
+    """
+    Populates the DB with initial Role/Scenario data AND Dummy Sessions
+    to ensure the Dashboard functions correctly out-of-the-box.
+    """
+    con = sqlite3.connect(DB_NAME)
+    c = con.cursor()
 
-      # 2. Insert Scenarios
-      scenarios = [
-          (
-              "TELLER_CASH", "TELLER", 
-              "Penanganan Uang Meragukan (Counterfeit) pada Nasabah Prioritas",
-              "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Anda adalah perwujudan dari 'Zero Tolerance Policy'.", 
-              "Anda adalah 'Bapak Hartono', nasabah Prioritas (Solitaire) pemilik jaringan ritel terbesar di kota ini.", 
-              "Bapak Hartono menyetor Rp 200 Juta tunai hasil penjualan toko. Mesin hitung menolak (reject) 2 lembar pecahan Rp 100.000."
-          ),
-          (
-              "CS_COMPLAINT", "CS", 
-              "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
-              "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'.",
-              "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank.", 
-              "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing)."
-          )
-      ]
-      c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
+    # Check if roles exist to avoid duplicates
+    c.execute("SELECT count(*) FROM roles")
+    if c.fetchone()[0] == 0:
+        print("Seeding Core Data (Roles, Scenarios, Rubrics)...")
+        
+        # 1. Insert Roles
+        roles = [
+            ("CS", "Customer Service"),
+            ("TELLER", "Bank Teller")
+        ]
+        c.executemany("INSERT INTO roles VALUES (?,?)", roles)
 
-      # 3. Insert Rubrics
-      rubrics = [
-          ("TELLER_CASH", "Sikap Profesional & Tenang", "Trainee tidak boleh terlihat gugup."),
-          ("TELLER_CASH", "Pemilihan Kata (Euphemism)", "DILARANG menggunakan kata 'PALSU' sebelum verifikasi."),
-          ("CS_COMPLAINT", "Immediate Security Action", "Langkah pertama Trainee HARUS melakukan pemblokiran."),
-          ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu.")
-      ]
-      c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
+        # 2. Insert Scenarios
+        scenarios = [
+            (
+                "TELLER_CASH", "TELLER", 
+                "Penanganan Uang Meragukan (Counterfeit) pada Nasabah Prioritas",
+                "Anda adalah Senior Head Teller bernama 'Pak Teguh'. Anda adalah perwujudan dari 'Zero Tolerance Policy'.", 
+                "Anda adalah 'Bapak Hartono', nasabah Prioritas (Solitaire) pemilik jaringan ritel terbesar di kota ini.", 
+                "Bapak Hartono menyetor Rp 200 Juta tunai hasil penjualan toko. Mesin hitung menolak (reject) 2 lembar pecahan Rp 100.000."
+            ),
+            (
+                "CS_COMPLAINT", "CS", 
+                "Handling Panic Customer: Indikasi Social Engineering (Fraud)",
+                "Anda adalah Service Quality Manager bernama 'Ibu Sari'. Anda fokus pada 'Customer Journey' dan 'Empathy'.",
+                "Anda adalah 'Ibu Lina', seorang pengusaha katering. Anda baru saja menerima telepon yang mengaku dari pihak bank.", 
+                "Nasabah datang dengan histeris karena saldonya terkuras setelah mengklik file .APK undangan pernikahan (Phishing)."
+            )
+        ]
+        c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
 
-  # 4. Insert Dummy Sessions (For Dashboard Visualization)
-  c.execute("SELECT count(*) FROM sessions")
-  if c.fetchone()[0] == 0:
-      print("Seeding Dummy Session Data...")
-      
-      # Format: session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log
-      dummy_sessions = [
-          ("SES-101", "Andi Saputra", "TELLER_CASH", "2024-10-01 09:30", 88, "SIAP TERJUN", "System: Welcome..."),
-          ("SES-102", "Budi Santoso", "CS_COMPLAINT", "2024-10-02 10:15", 55, "BELUM SIAP", "System: Welcome..."),
-          ("SES-103", "Citra Lestari", "TELLER_CASH", "2024-10-03 11:00", 92, "SIAP TERJUN", "System: Welcome..."),
-          ("SES-104", "Dewi Persik", "CS_COMPLAINT", "2024-10-04 13:45", 76, "BUTUH LATIHAN", "System: Welcome..."),
-          ("SES-105", "Eko Patrio", "TELLER_CASH", "2024-10-05 14:30", 65, "BUTUH LATIHAN", "System: Welcome..."),
-          ("SES-106", "Fajar Hadi", "CS_COMPLAINT", "2024-10-06 15:00", 40, "BELUM SIAP", "System: Welcome..."),
-          ("SES-107", "Gita Gutawa", "TELLER_CASH", "2024-10-07 08:30", 95, "SIAP TERJUN", "System: Welcome..."),
-          ("SES-108", "Hesti Purwadinata", "CS_COMPLAINT", "2024-10-07 09:00", 82, "SIAP TERJUN", "System: Welcome..."),
-          ("SES-109", "Indra Bekti", "TELLER_CASH", "2024-10-08 10:45", 70, "BUTUH LATIHAN", "System: Welcome..."),
-          ("SES-110", "Joko Anwar", "CS_COMPLAINT", "2024-10-08 11:30", 89, "SIAP TERJUN", "System: Welcome...")
-      ]
-      c.executemany("INSERT INTO sessions VALUES (?,?,?,?,?,?,?)", dummy_sessions)
+        # 3. Insert Rubrics
+        rubrics = [
+            ("TELLER_CASH", "Sikap Profesional & Tenang", "Trainee tidak boleh terlihat gugup."),
+            ("TELLER_CASH", "Pemilihan Kata (Euphemism)", "DILARANG menggunakan kata 'PALSU' sebelum verifikasi."),
+            ("CS_COMPLAINT", "Immediate Security Action", "Langkah pertama Trainee HARUS melakukan pemblokiran."),
+            ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu.")
+        ]
+        c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
 
-      # 5. Insert Dummy Grades (Linked to Sessions)
-      # Format: session_id, criteria, score, evidence, feedback
-      dummy_grades = [
-          ("SES-101", "Sikap Profesional & Tenang", 90, "Nasabah marah, trainee tetap senyum", "Good job maintaining composure."),
-          ("SES-101", "Pemilihan Kata (Euphemism)", 85, "Menggunakan istilah 'diragukan'", "Tepat sekali."),
-          ("SES-102", "Immediate Security Action", 20, "Hanya mendengarkan curhat nasabah", "Fatal: Lupa blokir rekening."),
-          ("SES-102", "Empati Tanpa Menjanjikan", 90, "Saya turut prihatin bu", "Empati bagus."),
-      ]
-      c.executemany("INSERT INTO session_grades (session_id, criteria, score, evidence, feedback) VALUES (?,?,?,?,?)", dummy_grades)
+    # 4. Insert Dummy Sessions (For Dashboard Visualization)
+    c.execute("SELECT count(*) FROM sessions")
+    if c.fetchone()[0] == 0:
+        print("Seeding Dummy Session Data...")
+        
+        # Format: session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log
+        dummy_sessions = [
+            ("SES-101", "Andi Saputra", "TELLER_CASH", "2024-10-01 09:30", 88, "SIAP TERJUN", "System: Welcome..."),
+            ("SES-102", "Budi Santoso", "CS_COMPLAINT", "2024-10-02 10:15", 55, "BELUM SIAP", "System: Welcome..."),
+            ("SES-103", "Citra Lestari", "TELLER_CASH", "2024-10-03 11:00", 92, "SIAP TERJUN", "System: Welcome..."),
+            ("SES-104", "Dewi Persik", "CS_COMPLAINT", "2024-10-04 13:45", 76, "BUTUH LATIHAN", "System: Welcome..."),
+            ("SES-105", "Eko Patrio", "TELLER_CASH", "2024-10-05 14:30", 65, "BUTUH LATIHAN", "System: Welcome..."),
+            ("SES-106", "Fajar Hadi", "CS_COMPLAINT", "2024-10-06 15:00", 40, "BELUM SIAP", "System: Welcome..."),
+            ("SES-107", "Gita Gutawa", "TELLER_CASH", "2024-10-07 08:30", 95, "SIAP TERJUN", "System: Welcome..."),
+            ("SES-108", "Hesti Purwadinata", "CS_COMPLAINT", "2024-10-07 09:00", 82, "SIAP TERJUN", "System: Welcome..."),
+            ("SES-109", "Indra Bekti", "TELLER_CASH", "2024-10-08 10:45", 70, "BUTUH LATIHAN", "System: Welcome..."),
+            ("SES-110", "Joko Anwar", "CS_COMPLAINT", "2024-10-08 11:30", 89, "SIAP TERJUN", "System: Welcome...")
+        ]
+        c.executemany("INSERT INTO sessions VALUES (?,?,?,?,?,?,?)", dummy_sessions)
 
-  con.commit()
-  con.close()
-  print("Database seeding complete.")
+        # 5. Insert Dummy Grades (Linked to Sessions)
+        # Format: session_id, criteria, score, evidence, feedback
+        dummy_grades = [
+            ("SES-101", "Sikap Profesional & Tenang", 90, "Nasabah marah, trainee tetap senyum", "Good job maintaining composure."),
+            ("SES-101", "Pemilihan Kata (Euphemism)", 85, "Menggunakan istilah 'diragukan'", "Tepat sekali."),
+            ("SES-102", "Immediate Security Action", 20, "Hanya mendengarkan curhat nasabah", "Fatal: Lupa blokir rekening."),
+            ("SES-102", "Empati Tanpa Menjanjikan", 90, "Saya turut prihatin bu", "Empati bagus."),
+        ]
+        c.executemany("INSERT INTO session_grades (session_id, criteria, score, evidence, feedback) VALUES (?,?,?,?,?)", dummy_grades)
+
+    con.commit()
+    con.close()
+    print("Database seeding complete.")
 
 # Logger
 def setup_logger(name="gaia"):
@@ -309,7 +319,7 @@ def get_scenario_config(scenario_id):
       "topic": scenario_data["topic"],
       "mentor_persona": scenario_data["mentor_persona"],
       "simulation_persona_text": scenario_data["simulation_persona"],
-      "scenario_detais_text": scenario_data["scenario_details"],
+      "scenario_details_text": scenario_data["scenario_details"],
       "success_criteria": rubrics
   }
 
@@ -574,7 +584,7 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
         1. You are strictly prohibited from answering questions that are NOT related to the [CONTEXT/KNOWLEDGE BASE] or [CHAT HISTORY].
         2. If the user asks a question outside of the provided scope, you must politely decline and state that you can only answer questions related to the specific context provided.
         3. Do not use outside knowledge or general training data to answer unrelated queries.
-        4. ALWAYS RESPONSE USING BAHASA INDONESIA
+        4. ALWAYS RESPOND IN BAHASA INDONESIA
         """
 
         # Build the Chain
@@ -625,66 +635,98 @@ def create_individual_report(session_data, grades_list, chat_history, llm):
         chain = prompt | llm | StrOutputParser()
 
         result = chain.invoke({"role_played": role_played, "score": score, "grading_summary": grading_summary})
+
+        # --- HEADER ---
+        header = doc.add_heading(f"Trainee Performance Report", 0)
+        header.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+        # --- SECTION 1: SESSION METADATA ---
+        doc.add_heading("1. Session Details", level=1)
+        table = doc.add_table(rows=1, cols=2)
+        table.style = 'Table Grid'
+        
+        # Column 1
+        cell1 = table.cell(0, 0)
+        p = cell1.paragraphs[0]
+        p.add_run("Trainee Name: ").bold = True
+        p.add_run(f"{session_data.get('trainee_name', 'Guest')}\n")
+        p.add_run("Role: ").bold = True
+        p.add_run(f"{role_played}\n")
+        p.add_run("Session ID: ").bold = True
+        p.add_run(f"{session_data.get('session_id', 'N/A')}")
+
+        # Column 2
+        cell2 = table.cell(0, 1)
+        p = cell2.paragraphs[0]
+        p.add_run("Total Score: ").bold = True
+        
+        # Dynamic Color for Score
+        score_run = p.add_run(f"{score}/100")
+        score_run.bold = True
+        score_run.font.size = Pt(14)
+        if score >= 80:
+            score_run.font.color.rgb = RGBColor(0, 128, 0) # Green
+        elif score >= 60:
+            score_run.font.color.rgb = RGBColor(255, 165, 0) # Orange
+        else:
+            score_run.font.color.rgb = RGBColor(255, 0, 0) # Red
+            
+        p.add_run(f"\nStatus: {session_data.get('readiness', 'Unknown')}")
+
+        doc.add_paragraph() # Spacer
+
+        # --- SECTION 2: AI MENTOR INSIGHT (The "Executive Summary" equivalent) ---
+        doc.add_heading("2. Mentor Readiness Assessment", level=1)
+        insight_p = doc.add_paragraph(result)
+        insight_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # --- SECTION 3: GRADING MATRIX ---
+        doc.add_heading("3. Grading Breakdown", level=1)
+        
+        g_table = doc.add_table(rows=1, cols=4)
+        g_table.style = 'Table Grid'
+        
+        # Header
+        hdr_cells = g_table.rows[0].cells
+        headers = ["Criteria", "Score", "Evidence", "Feedback"]
+        for i, h in enumerate(headers):
+            hdr_cells[i].text = h
+            hdr_cells[i].paragraphs[0].runs[0].bold = True
+            
+        # Rows
+        for grade in grades_list:
+            row_cells = g_table.add_row().cells
+            row_cells[0].text = str(grade.get('criteria', ''))
+            row_cells[1].text = str(grade.get('score', ''))
+            row_cells[2].text = str(grade.get('evidence', ''))
+            row_cells[3].text = str(grade.get('feedback', ''))
+
+        # --- SECTION 4: TRANSCRIPT (Optional/Appendix) ---
+        doc.add_heading("Appendix: Chat Transcript", level=1)
+        
+        for msg in chat_history:
+            role = msg['role'].upper()
+            content = msg['content']
+            
+            # Skip internal triggers
+            if "[SYSTEM_TRIGGER" in content:
+                continue
+                
+            p = doc.add_paragraph()
+            role_run = p.add_run(f"{role}: ")
+            role_run.bold = True
+            role_run.font.size = Pt(9)
+            p.add_run(content).font.size = Pt(9)
+
+        # --- SAVE ---
+        filename = f"{REPORTS_DIR}/{session_data['session_id']}_{session_data.get('trainee_name', 'User').replace(' ', '_')}.docx"
+        doc.save(filename)
+        return filename
+        
     except Exception as e:
         logger.exception("Error generating Individual Report Results")
         raise
-    
-    # --- HEADER ---
-    header = doc.add_heading(f"Trainee Performance Report", 0)
-    header.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Meta Data Section
-    doc.add_heading("Session Details", level=1)
-    p = doc.add_paragraph()
-    p.add_run("Trainee Name: ").bold = True
-    p.add_run(f"{session_data.get('trainee_name', 'N/A')}\n")
-    p.add_run("Role Played: ").bold = True
-    p.add_run(f"{session_data.get('role', 'N/A')}\n")
-    p.add_run("Date: ").bold = True
-    p.add_run(f"{datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
-    p.add_run("Final Score: ").bold = True
-    
-    # Color code score
-    score = session_data.get('score', 0)
-    score_run = p.add_run(f"{score}/100")
-    if score >= 80:
-        score_run.font.color.rgb = RGBColor(0, 128, 0) # Green
-    else:
-        score_run.font.color.rgb = RGBColor(255, 0, 0) # Red
-        
-    doc.add_paragraph() # Spacer
-
-    # --- SECTION 1: AI PERFORMANCE SUMMARY ---
-    doc.add_heading("1. Mentor Insight & Readiness Assessment", level=1)
-    doc.add_paragraph(ai_summary_text) # This is the text generated by the AI
-    
-    doc.add_paragraph()
-
-    # --- SECTION 2: GRADING MATRIX ---
-    doc.add_heading("2. Grading Matrix", level=1)
-    
-    table = doc.add_table(rows=1, cols=4)
-    table.style = 'Table Grid'
-    
-    # Header
-    hdr_cells = table.rows[0].cells
-    headers = ["Criteria", "Score", "Evidence", "Feedback"]
-    for i, h in enumerate(headers):
-        hdr_cells[i].text = h
-        hdr_cells[i].paragraphs[0].runs[0].bold = True
-        
-    # Rows
-    for grade in grades_list:
-        row_cells = table.add_row().cells
-        row_cells[0].text = str(grade.get('criteria', ''))
-        row_cells[1].text = str(grade.get('score', ''))
-        row_cells[2].text = str(grade.get('evidence', ''))
-        row_cells[3].text = str(grade.get('feedback', ''))
-
-    # --- SAVE ---
-    filename = f"{REPORTS_DIR}/{session_data['session_id']}_Individual_Report.docx"
-    doc.save(filename)
-    return filename
 
 def create_executive_summary(overall_stats, data_summary, llm):
     """
