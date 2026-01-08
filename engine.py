@@ -71,6 +71,7 @@ def init_db():
       total_score INTEGER,
       readiness TEXT,
       chat_log TEXT,
+      report_path TEXT,
       FOREIGN KEY(scenario_id) REFERENCES scenarios(scenario_id)
   )''')
 
@@ -322,8 +323,8 @@ def save_full_session(session_data, grade_list):
     # 1. Save Session Header
     try:
         c.execute('''INSERT INTO sessions
-            (session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log)
-            VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (session_id, trainee_name, scenario_id, date, total_score, readiness, chat_log, report_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
             (
                 session_data['session_id'],     
                 session_data['trainee_name'],     
@@ -331,7 +332,8 @@ def save_full_session(session_data, grade_list):
                 session_data['date'],     
                 session_data['total_score'],
                 session_data['readiness'],     
-                str(session_data['chat_log'])
+                str(session_data['chat_log']),
+                session_data.get('report_path', '')
             )
         )
 
@@ -370,7 +372,8 @@ def fetch_all_sessions():
             s.date,
             s.total_score as Score,
             s.readiness,
-            sc.role_id
+            sc.role_id,
+            s.report_path
         FROM sessions s
         JOIN scenarios sc ON s.scenario_id = sc.scenario_id
         ORDER BY s.date DESC
@@ -585,27 +588,46 @@ def query_chain(retriever, llm, user_input: str, role_id: str, current_phase: st
         logger.exception("Error querying the chain")
         raise
 
-def create_individual_report(session_data, data_summary, grades_list):
+def create_individual_report(session_data, grades_list, chat_history, llm):
     """
-    Generates a Word doc for a single trainee with AI insights and Grading Table.
+    Generates a full performance report.
+    - Uses the LLM to generate a qualitative 'Readiness Assessment'.
+    - Creates a Word Document with: Meta Data -> AI Insight -> Grading Matrix -> Transcript.
     """
-
-    # Generate AI Summary
-    try:
-        prompt = f"""
-        You are a Senior Training Consultant. Analyze the following training data CSV:
-        {data_summary}
-        
-        Write an Executive Summary (3-5 paragraphs) covering:
-        1. **Overall Performance Trends**: Are trainees generally passing?
-        2. **Common Weaknesses**: Identify roles or metrics with low scores.
-        3. **Strategic Recommendations**: What should the training team focus on next week?
-        """
-    except Exception as e:
-        logger.exception("Error generating AI Summary")
-        raise
 
     doc = Document()
+
+    try:
+        # ==========================================
+        # 1. GENERATE AI INSIGHT (The New Logic)
+        # ==========================================
+        template = f"""
+        You are a Senior Banking Training Mentor. 
+        Write a formal "Performance Review & Readiness Assessment" (2-3 paragraphs) for a trainee who just completed the "{role_played}" simulation.
+
+        **Session Data:**
+        - Final Score: {score}/100
+        - Grading Details: {grading_summary}
+
+        **Instructions:**
+        1. Summarize their key strengths based on the high scores.
+        2. Point out specific critical errors (if any) based on low scores/feedback.
+        3. Provide a clear recommendation: Are they ready for the real job? If not, what specific SOPs must they re-read?
+        4. Tone: Professional, constructive, and encouraging.
+        """
+
+        # Prepare the context for the AI
+        grading_summary = json.dumps(grades_list, indent=2)
+        role_played = session_data.get('scenario_id', 'unknown')
+        score = session_data.get('total_score', 0)
+
+        prompt = ChatPromptTemplate.from_template(template)
+        chain = prompt | llm | StrOutputParser()
+
+        result = chain.invoke({"role_played": role_played, "score": score, "grading_summary": grading_summary})
+    except Exception as e:
+        logger.exception("Error generating Individual Report Results")
+        raise
     
     # --- HEADER ---
     header = doc.add_heading(f"Trainee Performance Report", 0)
@@ -710,5 +732,5 @@ def create_executive_summary(overall_stats, data_summary, llm):
         return filename
         
     except Exception as e:
-        logger.exception("Error generating AI Summary")
+        logger.exception("Error generating Executive Summary")
         raise

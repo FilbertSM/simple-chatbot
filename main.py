@@ -1,9 +1,13 @@
 import os
+import re
+import uuid
+import json
 import pandas as pd
 import streamlit as st
 import altair as alt
+from datetime import datetime
 from dotenv import load_dotenv
-from engine import query_chain, load_vectors, get_retriever, create_executive_summary, create_individual_report, fetch_all_sessions, init_db
+from engine import query_chain, load_vectors, get_retriever, create_executive_summary, create_individual_report, fetch_all_sessions, init_db, save_full_session
 from langchain_ollama.llms import OllamaLLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -392,10 +396,62 @@ def new_cxo_page():
             # st.error("Simulation in progress")
         elif st.session_state.phase == "GRADING":
             if st.button("🏁 Finish the Session", key="finish_session"):
-                st.session_state.phase = "FINISHED"
                 # Logic to create a record and report
-                
-                st.rerun()
+                with st.spinner("Analyzing performance and saving the session"):
+                    
+                    # 1. Extract JSON from AI (Parsing the grading output)
+                    last_msg = st.session_state[-1]["content"]
+                    try:
+                        # Find JSON content between braces
+                        json_matches = re.search(r'\{.*\}', last_msg, re.DOTALL)
+                        if json_matches:
+                            metrics = json.loads(json_matches.group())
+                        else:
+                            metrics = {}
+                    except Exception as e:
+                        st.error(f"Error parsing AI grades: {e}")
+
+                    # 2. Prepare Data Objects
+                    # Header Data
+                    session_id = f"SES-{uuid.uuid4().hex[:8].upper()}"
+                    session_data = {
+                        "session_id": session_id,
+                        "trainee_name": "Filbert Sembiring M.",
+                        "scenario_id": role_id,
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        "total_score": metrics.get("total_score", 0),
+                        "readiness": metrics.get("readiness", "Undetected"),
+                        "chat_log": json.dumps(st.session_state.messages)
+                    }
+
+                    # Detailed Grades List
+                    grades_list = metrics.get("grades", [])
+                    
+                    # 3. Generate Report
+                    report_path = create_individual_report(session_data, grades_list, st.session_state.messages, st.session_state.llm)
+
+                    # 4. Save to DB
+                    session_data["report_path"] = report_path
+                    save_full_session(session_data, grades_list)
+
+                    # 5. Transition
+                    st.session_state.phase = "FINISHED"
+                    st.rerun()
+
+    if st.session_state.phase == "FINISHED":
+        st.header("🎉 Training Complete")
+        st.success("""
+        **Session Recorded Successfully.**
+        
+        Your performance data has been saved to the database. 
+        You can now start a new session or ask your PIC for the detailed report.
+        """)
+        st.divider()
+
+        if st.button("🔄 Start New Session", type="primary"):
+            st.session_state.phase = "START"
+            st.session_state.messages = []
+            st.rerun()
 
 def dashboard_data():
     """
