@@ -558,18 +558,16 @@ def build_system_prompt(phase: str, data: dict) -> str:
            - Start with a professional closing remark.
            - Present the Grading Table in Markdown.
            - State the Readiness Level clearly.
-        **Part 2: The System Data**
-           - You MUST output the separator string: "|||JSON_DATA|||"
-           - Immediately following the separator, output the raw JSON object for the database.
+           - Offer a final encouraging remark to the trainee.
+
+        - You MUST output the separator string: "|||JSON_DATA|||"
+        - Immediately following the separator, output the raw JSON object for the database.
         **JSON SCHEMA:**
         {{
             "total_score": <int>,
             "readiness": "<string>",
             "grades": [ {{ "criteria": "...", "score": <int>, "evidence": "...", "feedback": "..." }} ]
         }}
-
-        **CLOSING:**
-        Offer a final encouraging remark to the trainee.
         """
 
     return mentor_persona
@@ -863,3 +861,45 @@ def create_executive_summary(overall_stats, data_summary, llm):
     except Exception as e:
         logger.exception("Error generating Executive Summary")
         raise
+
+def _extract_json_from_text(text: str):
+    """
+    Try robust strategies to extract a JSON object from the model output.
+    Returns parsed dict or None.
+    """
+    if not text:
+        return None
+
+    # 1) explicit separator (fast path)
+    m = re.search(r"\|\|\|JSON_DATA\|\|\|(.*)$", text, re.S)
+    if m:
+        candidate = m.group(1).strip()
+        candidate = candidate.replace("```json", "").replace("```", "").strip()
+        try:
+            # try to decode first JSON value in candidate
+            decoder = json.JSONDecoder()
+            obj, idx = decoder.raw_decode(candidate)
+            return obj
+        except Exception:
+            pass
+
+    # 2) fenced block
+    m = re.search(r"```json\s*(\{.*\})\s*```", text, re.S)
+    if m:
+        candidate = m.group(1).strip()
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+
+    # 3) best-effort: find first {...} using raw_decode on substring after first {
+    i = text.find('{')
+    if i != -1:
+        try:
+            decoder = json.JSONDecoder()
+            obj, idx = decoder.raw_decode(text[i:])
+            return obj
+        except Exception:
+            pass
+
+    return None

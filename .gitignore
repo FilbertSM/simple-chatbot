@@ -9,3 +9,4 @@ node_modules/
 chroma_store/
 uploaded_pdfs
 *.db
+reports/

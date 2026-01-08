@@ -7,14 +7,18 @@ import streamlit as st
 import altair as alt
 from datetime import datetime
 from dotenv import load_dotenv
-from engine import query_chain, load_vectors, get_retriever, create_executive_summary, create_individual_report, fetch_all_sessions, init_db, save_full_session
+from engine import query_chain, load_vectors, get_retriever, create_executive_summary, create_individual_report, fetch_all_sessions, init_db, save_full_session, _extract_json_from_text
 from langchain_ollama.llms import OllamaLLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 st.set_page_config(page_title="GAIA", layout="wide")
 
 load_dotenv()
-init_db()
+# Init DB only once per session to avoid repeated heavy work
+if "db_initialized" not in st.session_state:
+    with st.spinner("Initializing database..."):
+        init_db()
+    st.session_state.db_initialized = True
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 def render_advisor_grid(data):
@@ -317,22 +321,19 @@ def new_cxo_page():
                     chat_history=st.session_state.messages
                 )
 
-                # 2. Separate Displays vs Data
-                if "|||JSON_DATA|||" in response_text:
-                    parts = response_text.split("|||JSON_DATA|||")
-                    display_text = parts[0].strip()
-                    json_text = parts[1].strip()
-                    
-                    # Store JSON securely in a dedicated variable
-                    st.session_state.grading_result = json_text
-                else:
-                    # Fallback if AI forgets separator
-                    display_text = response_text
-                    st.session_state.grading_result = None
+                # --- robust extraction: try to parse JSON and store it ---
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                # Try to capture grading JSON from any assistant message and persist immediately
+                try:
+                    metrics_obj = _extract_json_from_text(response_text)
+                    if metrics_obj is not None:
+                        st.session_state.grading_result = json.dumps(metrics_obj, ensure_ascii=False)
+                except Exception:
+                    pass
 
                 # 3. Render & Save only the CLEAN text to history
-                st.markdown(display_text)
-                st.session_state.messages.append({"role": "assistant", "content": display_text})
+                st.markdown(response_text)
+                # st.session_state.messages.append({"role": "assistant", "content": response_text})
                 # st.markdown(response_text)
                 # st.session_state.messages.append({"role": "assistant", "content": response_text})
                 st.session_state.trigger_ai_greeting = False
@@ -435,11 +436,20 @@ def new_cxo_page():
                     # 1. Retrieve the cached JSON
                     st.session_state.messages_record.extend(st.session_state.messages)
                     raw_json = st.session_state.get("grading_result", None)
-                    
+
+                    # Fallback: if grading_result is missing, try to extract from assistant messages_record
+                    if not raw_json:
+                        # join assistant messages (or last assistant message) to search for JSON
+                        assistant_texts = " ".join([m["content"] for m in st.session_state.messages_record if m["role"] == "assistant"])
+                        metrics_obj = _extract_json_from_text(assistant_texts)
+                        if metrics_obj is not None:
+                            raw_json = json.dumps(metrics_obj, ensure_ascii=False)
+                            st.session_state.grading_result = raw_json
+
                     metrics = {}
                     if raw_json:
                         try:
-                            # Cleanup markdown wrappers if present
+                            # raw_json should already be a clean JSON string
                             clean_json = raw_json.replace("```json", "").replace("```", "").strip()
                             metrics = json.loads(clean_json)
                         except Exception as e:
@@ -464,7 +474,7 @@ def new_cxo_page():
                     grades_list = metrics.get("grades", [])
                     
                     # 3. Generate Report
-                    report_path = create_individual_report(session_data, grades_list, st.session_state.messages, st.session_state.llm)
+                    report_path = create_individual_report(session_data, grades_list, st.session_state.messages_record, st.session_state.llm)
 
                     # 4. Save to DB
                     session_data["report_path"] = report_path
