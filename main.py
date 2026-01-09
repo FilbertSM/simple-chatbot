@@ -322,7 +322,7 @@ def new_cxo_page():
                 )
 
                 # --- robust extraction: try to parse JSON and store it ---
-                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                # st.session_state.messages.append({"role": "assistant", "content": response_text})
                 # Try to capture grading JSON from any assistant message and persist immediately
                 try:
                     metrics_obj = _extract_json_from_text(response_text)
@@ -330,10 +330,13 @@ def new_cxo_page():
                         st.session_state.grading_result = json.dumps(metrics_obj, ensure_ascii=False)
                 except Exception:
                     pass
+                
+                # Remove separator and any trailing JSON for display/history
+                display_text = re.sub(r"\|\|\|JSON_DATA\|\|\|.*$", "", response_text, flags=re.S).strip()
 
                 # 3. Render & Save only the CLEAN text to history
-                st.markdown(response_text)
-                # st.session_state.messages.append({"role": "assistant", "content": response_text})
+                st.markdown(display_text)
+                st.session_state.messages.append({"role": "assistant", "content": display_text})
                 # st.markdown(response_text)
                 # st.session_state.messages.append({"role": "assistant", "content": response_text})
                 st.session_state.trigger_ai_greeting = False
@@ -772,7 +775,7 @@ pages = {
         # st.Page(mainpage, title="👤 Roleplay & Tutor"),
         # st.Page(mb_page, title="Magang Bakti"),
         # st.Page(cxo_page, title="👤 CXO Chatbot"),
-        st.Page(new_cxo_page, title="👤 CXO Chatbot"),
+        st.Page(new_cxo_page, title="👤 CSO Chatbot"),
         st.Page(dashboard, title="📊 PIC Dashboard"),
         # st.Page(test, title="Test"),
     ]

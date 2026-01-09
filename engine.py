@@ -154,10 +154,10 @@ def seed_db():
             ),
             (
                 "CSO_Giro_Tapres", "CS", 
-                "Layanan Warkat (Edukasi Nasabah Awam)",
-                "Anda adalah Senior CS Officer. Fokus Anda adalah 'Customer Education' dan 'Communication Skill'. Anda ingin melihat apakah Trainee bisa menjelaskan istilah perbankan yang rumit (seperti SLA, Cut-off, Autodebet) menjadi bahasa manusiawi yang mudah dimengerti oleh orang awam.",
-                "Anda adalah 'Pak Santoso', seorang pensiunan yang baru mencoba membuka usaha toko kelontong. Gaya bicara Anda sangat sopan, pelan, dan kebapakan. Anda sangat awam soal bank. Anda berpikir mengambil buku Cek itu sama seperti membeli buku tulis di toko: Bayar uangnya di kasir, lalu barangnya langsung dibawa pulang saat itu juga.", 
-                "Pak Santoso menyerahkan resi dan uang tunai Rp 275.000 di meja. Beliau meminta buku cek-nya sekarang karena mau dipakai bayar supplier nanti sore. Beliau tidak marah, hanya benar-benar bingung kenapa 'beli buku' saja harus menunggu besok dan tidak bisa bayar tunai. Tantangan: Jelaskan prosedur tanpa membuat nasabah merasa bodoh."
+                "Layanan Cetak Mutasi & Info Produk (Giro & Tapres)",
+                "Anda adalah Customer Service Professional. Fokus utama Anda adalah akurasi data dan 'Product Knowledge'. Anda harus menghafal biaya layanan (Mutasi) dan syarat pembukaan rekening (Giro/Tapres) di luar kepala. Pastikan Anda selalu melakukan verifikasi identitas (KTP & Kartu ATM) sebelum memproses permintaan cetak dokumen. Nada bicara ramah namun lugas.",
+                "Anda adalah 'Bapak Budi', seorang nasabah lama yang ingin mencetak mutasi rekening Tapres untuk transaksi minggu lalu (Senin-Jumat). Anda juga seorang pemilik usaha kecil yang sedang menjajaki pembukaan rekening Giro. Anda cukup detail mengenai biaya-biaya administrasi (per lembar) dan ingin tahu modal awal (setoran) untuk buka Giro.", 
+                "Nasabah ingin cetak mutasi Tapres periode Senin-Jumat minggu lalu. Nasabah juga bertanya biaya cetak per lembar dan persyaratan setoran awal untuk pembukaan rekening Giro Rupiah. Tantangan: Berikan informasi biaya yang akurat (Rp 2.500) dan setoran awal Giro (Rp 1 Juta)."
             ),
         ]
         c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
@@ -170,9 +170,10 @@ def seed_db():
             ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu."),
             ("CS_WARKAT", "Informasi SLA (Waktu)", "Menjelaskan waktu pengambilan (H+1/H+2) dengan bahasa halus. Contoh: 'Mohon ditunggu ya Pak, karena bukunya perlu kami cetak khusus atas nama Bapak, jadi baru siap besok'."),
             ("CS_WARKAT", "Edukasi Pembayaran (Non-Tunai)", "Menolak pembayaran tunai dengan sopan dan menjelaskan sistem Autodebet. Contoh: 'Untuk biayanya Bapak tidak perlu repot bayar tunai disini, nanti otomatis terpotong dari saldo tabungan Bapak'."),
-            ("CSO_Giro_Tapres", "Kepatuhan Prosedur (Procedural Compliance)", "Trainee harus mampu menjalankan seluruh prosedur layanan dengan tepat (sesuai SOP) dan menjawab semua pertanyaan yang diajukan nasabah dengan benar dan akurat.")
-            ("CSO_Giro_Tapres", "Standar Layanan & Personalisasi", "Trainee wajib memberikan sambutan yang hangat (warm greeting), dan menyebut nama nasabah minimal 3 kali selama proses pelayanan berlangsung.")
-            ("CSO_Giro_Tapres", "Akhir Layanan (Closing)", "Pada akhir interaksi, Trainee harus melakukan 3 hal: Menawarkan bantuan lain ('Ada lagi yang bisa dibantu?'), mengucapkan salam penutup yang sesuai standar, dan wajib mengucapkan 'Magic Word' (Terima Kasih).")
+            ("CSO_Giro_Tapres", "Kepatuhan Prosedur (Procedural Compliance)", "Trainee harus mampu menjalankan seluruh prosedur layanan dengan tepat (sesuai SOP) dan menjawab semua pertanyaan yang diajukan nasabah dengan benar dan akurat."),
+            ("CSO_Giro_Tapres", "Product Knowledge (Giro)", "Menjelaskan dengan tepat bahwa setoran awal untuk pembukaan rekening Giro Rupiah adalah Rp 1.000.000."),
+            ("CSO_Giro_Tapres", "Standar Layanan & Personalisasi", "Trainee wajib memberikan sambutan yang hangat (warm greeting), dan menyebut nama nasabah minimal 3 kali selama proses pelayanan berlangsung."),
+            ("CSO_Giro_Tapres", "Akhir Layanan (Closing)", "Pada akhir interaksi, Trainee harus melakukan 3 hal: Menawarkan bantuan lain ('Ada lagi yang bisa dibantu?'), mengucapkan salam penutup yang sesuai standar, dan wajib mengucapkan 'Magic Word' (Terima Kasih)."),
         ]
         c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
 
@@ -513,30 +514,41 @@ def build_system_prompt(phase: str, data: dict) -> str:
     # ---------------------------------------------------------
     elif phase == "ROLEPLAY":
         return f"""
-        ### SYSTEM MODE SWITCH: SIMULATION (STRICT MODE)
-        **CRITICAL:** STOP being the Mentor. BECOME the following persona:
-        {simulation_persona}
+        ### SYSTEM MODE: SIMULATION (STRICT MODE)
+        PURPOSE:
+        - Run a realistic roleplay. The assistant will play the counterpart/customer persona and must remain fully IN CHARACTER after the opening.
 
-        ### SCENARIO CONTEXT
+        FIRST MESSAGE REQUIREMENT (MUST FOLLOW EXACTLY):
+        1. On your FIRST message only, BEFORE assuming the persona, produce a clear SCENARIO BRIEF. The brief must be 3-5 concise sentences that explicitly describe:
+           - Who is involved (roles / personas).
+           - What happened (situation / trigger).
+           - Stakes or risks (why it matters).
+           - Key constraints or SOPs that apply.
+        2. Label the brief with a single-line heading: "SCENARIO BRIEF:" followed by the 3-5 sentence description.
+        3. After the SCENARIO BRIEF, IMMEDIATELY begin the role portrayal on the next messages. Do not include any meta commentary or instructions after you begin the persona and do not re-explain the scenario brief.
+
+        ONCE IN CHARACTER (ALL SUBSEQUENT MESSAGES):
+        - Remain strictly the customer/counterpart and do NOT give advice or coaching.
+        - React naturally and concisely according to the persona you were given.
+        - Avoid meta language such as "as a persona" or "I will now...".
+        - If asked for out-of-character clarification, refuse politely and instruct the trainee to click the '🏁 Finish & Grade' button to receive feedback.
+
+        BEHAVIORAL CONSTRAINTS (must be followed exactly):
+        - Do NOT break character under any circumstance except to end the simulation.
+        - When the simulation ends, explicitly BREAK CHARACTER with the sentence: "SIMULATION ENDED." then instruct the trainee to click the '🏁 Finish & Grade' button.
+        - Keep utterances natural, concise, and relevant to the scenario brief and persona.
+
+        SCENARIO CONTEXT (for reference):
         {scenario_details}
 
-        ### CURRENT OBJECTIVE: PHASE 2 - ROLEPLAY SIMULATION
-        **Goal:** Test the trainee's application of skills in a realistic scenario.
-
-        **CONSTRAINTS & BEHAVIOR:**
-        1. **Do NOT give advice.** You are the customer/counterpart, not the teacher.
-        2. **Do NOT break character.** Even if the trainee asks for help, reply IN CHARACTER (e.g., "I don't care about your manual, I want this fixed!").
-        3. **Emotional Reaction:** React realistically. Get happier if they handle it well, get angrier/more frustrated if they stick to scripts that don't help.
-        4. **Transition (CRITICAL):** - Continue until the problem is solved or the trainee gives up.
-          - When the scene ends, BREAK CHARACTER immediately.
-          - Say: "SIMULATION ENDED."
-          - **Instruct them explicitly** to click the button **'🏁 Finish & Grade'** below to see their score.
+        PERSONA TO ADOPT AFTER BRIEF:
+        {simulation_persona}
         """
     
     # ---------------------------------------------------------
     # PHASE 5: GRADING & SUMMARY
     # ---------------------------------------------------------
-    elif phase == "GRADING":      
+    elif phase == "GRADING":       
         return f"""
         ### SYSTEM MODE: AUDITOR (Return to Mentor Persona)
         You are {mentor_persona}. Your task is to review the Roleplay (ROLEPLAY) portion of the chat and produce:
@@ -549,28 +561,28 @@ def build_system_prompt(phase: str, data: dict) -> str:
         - The separator MUST be exactly: |||JSON_DATA||| on its own line.
         - AFTER the separator output ONLY the raw JSON object and then stop. Nothing else may appear (no punctuation, no explanation, no Markdown, no fences).
         - Do NOT include the separator inside the JSON string.
-        - If you cannot produce a valid JSON for any reason, output the separator and the fallback JSON: {"total_score":0,"readiness":"BELUM SIAP","grades":[]} and stop.
+        - If you cannot produce a valid JSON for any reason, output the separator and the fallback JSON: {{"total_score":0,"readiness":"BELUM SIAP","grades":[]}} and stop.
 
         HUMAN-READABLE REVIEW SPEC:
         - Start with one short professional closing sentence.
         - Provide a Markdown table with columns: Criteria | Evidence (Quote) | Feedback | Score (0-100).
         - End with two lines:
-          > **Status Kesiapan:** [SIAP TERJUN / BUTUH LATIHAN / BELUM SIAP]
-          > **Kesimpulan:** [One concise sentence]
+        > **Status Kesiapan:** [SIAP TERJUN / BUTUH LATIHAN / BELUM SIAP]
+        > **Kesimpulan:** [One concise sentence]
 
         JSON OUTPUT SCHEMA (exact keys and types):
         {{
-          "total_score": <integer 0-100>,
-          "readiness": "<SIAP TERJUN | BUTUH LATIHAN | BELUM SIAP>",
-          "grades": [
+        "total_score": <integer 0-100>,
+        "readiness": "<SIAP TERJUN | BUTUH LATIHAN | BELUM SIAP>",
+        "grades": [
             {{
-              "criteria": "<string>",
-              "score": <integer 0-100>,
-              "evidence": "<string - short quote from transcript>",
-              "feedback": "<string - concise recommendation>"
+            "criteria": "<string>",
+            "score": <integer 0-100>,
+            "evidence": "<string - short quote from transcript>",
+            "feedback": "<string - concise recommendation>"
             }},
             ...
-          ]
+        ]
         }}
 
         GUIDELINES FOR JSON:
@@ -583,8 +595,8 @@ def build_system_prompt(phase: str, data: dict) -> str:
         EXAMPLE (for clarity ONLY — do not output this example in the actual response):
         Human text...
         |||JSON_DATA|||
-        {"total_score":85,"readiness":"SIAP TERJUN","grades":[{"criteria":"Immediate Security Action","score":90,"evidence":"\"Saya langsung blokir...\"","feedback":"Good immediate action."}]}
-
+        {{ "total_score":...,"readiness":"...","grades":[{{ "criteria":"...","score":...,"evidence":"...","feedback":"..." }}] }}
+        
         Now produce the review and the required JSON strictly following the rules above.
         """
 
