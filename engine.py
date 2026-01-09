@@ -151,7 +151,14 @@ def seed_db():
                 "Anda adalah Senior CS Officer. Fokus Anda adalah 'Customer Education' dan 'Communication Skill'. Anda ingin melihat apakah Trainee bisa menjelaskan istilah perbankan yang rumit (seperti SLA, Cut-off, Autodebet) menjadi bahasa manusiawi yang mudah dimengerti oleh orang awam.",
                 "Anda adalah 'Pak Santoso', seorang pensiunan yang baru mencoba membuka usaha toko kelontong. Gaya bicara Anda sangat sopan, pelan, dan kebapakan. Anda sangat awam soal bank. Anda berpikir mengambil buku Cek itu sama seperti membeli buku tulis di toko: Bayar uangnya di kasir, lalu barangnya langsung dibawa pulang saat itu juga.", 
                 "Pak Santoso menyerahkan resi dan uang tunai Rp 275.000 di meja. Beliau meminta buku cek-nya sekarang karena mau dipakai bayar supplier nanti sore. Beliau tidak marah, hanya benar-benar bingung kenapa 'beli buku' saja harus menunggu besok dan tidak bisa bayar tunai. Tantangan: Jelaskan prosedur tanpa membuat nasabah merasa bodoh."
-            )
+            ),
+            (
+                "CSO_Giro_Tapres", "CS", 
+                "Layanan Warkat (Edukasi Nasabah Awam)",
+                "Anda adalah Senior CS Officer. Fokus Anda adalah 'Customer Education' dan 'Communication Skill'. Anda ingin melihat apakah Trainee bisa menjelaskan istilah perbankan yang rumit (seperti SLA, Cut-off, Autodebet) menjadi bahasa manusiawi yang mudah dimengerti oleh orang awam.",
+                "Anda adalah 'Pak Santoso', seorang pensiunan yang baru mencoba membuka usaha toko kelontong. Gaya bicara Anda sangat sopan, pelan, dan kebapakan. Anda sangat awam soal bank. Anda berpikir mengambil buku Cek itu sama seperti membeli buku tulis di toko: Bayar uangnya di kasir, lalu barangnya langsung dibawa pulang saat itu juga.", 
+                "Pak Santoso menyerahkan resi dan uang tunai Rp 275.000 di meja. Beliau meminta buku cek-nya sekarang karena mau dipakai bayar supplier nanti sore. Beliau tidak marah, hanya benar-benar bingung kenapa 'beli buku' saja harus menunggu besok dan tidak bisa bayar tunai. Tantangan: Jelaskan prosedur tanpa membuat nasabah merasa bodoh."
+            ),
         ]
         c.executemany("INSERT INTO scenarios VALUES (?,?,?,?,?,?)", scenarios)
 
@@ -163,6 +170,9 @@ def seed_db():
             ("CS_COMPLAINT", "Empati Tanpa Menjanjikan", "Mengucapkan keprihatinan mendalam tanpa janji palsu."),
             ("CS_WARKAT", "Informasi SLA (Waktu)", "Menjelaskan waktu pengambilan (H+1/H+2) dengan bahasa halus. Contoh: 'Mohon ditunggu ya Pak, karena bukunya perlu kami cetak khusus atas nama Bapak, jadi baru siap besok'."),
             ("CS_WARKAT", "Edukasi Pembayaran (Non-Tunai)", "Menolak pembayaran tunai dengan sopan dan menjelaskan sistem Autodebet. Contoh: 'Untuk biayanya Bapak tidak perlu repot bayar tunai disini, nanti otomatis terpotong dari saldo tabungan Bapak'."),
+            ("CSO_Giro_Tapres", "Kepatuhan Prosedur (Procedural Compliance)", "Trainee harus mampu menjalankan seluruh prosedur layanan dengan tepat (sesuai SOP) dan menjawab semua pertanyaan yang diajukan nasabah dengan benar dan akurat.")
+            ("CSO_Giro_Tapres", "Standar Layanan & Personalisasi", "Trainee wajib memberikan sambutan yang hangat (warm greeting), dan menyebut nama nasabah minimal 3 kali selama proses pelayanan berlangsung.")
+            ("CSO_Giro_Tapres", "Akhir Layanan (Closing)", "Pada akhir interaksi, Trainee harus melakukan 3 hal: Menawarkan bantuan lain ('Ada lagi yang bisa dibantu?'), mengucapkan salam penutup yang sesuai standar, dan wajib mengucapkan 'Magic Word' (Terima Kasih).")
         ]
         c.executemany("INSERT INTO grading_rubrics (scenario_id, criteria, description) VALUES (?,?,?)", rubrics)
 
@@ -528,46 +538,54 @@ def build_system_prompt(phase: str, data: dict) -> str:
     # ---------------------------------------------------------
     elif phase == "GRADING":      
         return f"""
-        ### SYSTEM MODE SWITCH: AUDITOR
-        Revert to your original persona: {mentor_persona}.
+        ### SYSTEM MODE: AUDITOR (Return to Mentor Persona)
+        You are {mentor_persona}. Your task is to review the Roleplay (ROLEPLAY) portion of the chat and produce:
+        1) A concise human-readable review (closing remark + Markdown grading table + readiness statement).
+        2) Immediately after the human-readable review, output a single-line separator on its own line: |||JSON_DATA||| 
+        3) Immediately following that separator, output ONLY a single raw JSON object (no code fences, no extra text, no commentary, no additional lines). The JSON must match the schema exactly.
 
-        ### CURRENT OBJECTIVE: PHASE 3 - SUMMARY & SCORING
-        **Goal:** Provide detailed feedback on the simulation and assess real-world readiness.
+        IMPORTANT RULES (must be followed exactly):
+        - The human-readable review (Markdown) comes BEFORE the separator.
+        - The separator MUST be exactly: |||JSON_DATA||| on its own line.
+        - AFTER the separator output ONLY the raw JSON object and then stop. Nothing else may appear (no punctuation, no explanation, no Markdown, no fences).
+        - Do NOT include the separator inside the JSON string.
+        - If you cannot produce a valid JSON for any reason, output the separator and the fallback JSON: {"total_score":0,"readiness":"BELUM SIAP","grades":[]} and stop.
 
-        **INSTRUCTIONS:**
-        Review the conversation history (focusing on the Roleplay phase).
-        1. Generate a Markdown Grading Table based on the rubric with exactly these columns:
-        | Criteria | Evidence (Quote) | Feedback | Score (0-100) |
-        2. Determine the **Readiness Level (Tingkat Kesiapan)** of the trainee to face this scenario in real life.
+        HUMAN-READABLE REVIEW SPEC:
+        - Start with one short professional closing sentence.
+        - Provide a Markdown table with columns: Criteria | Evidence (Quote) | Feedback | Score (0-100).
+        - End with two lines:
+          > **Status Kesiapan:** [SIAP TERJUN / BUTUH LATIHAN / BELUM SIAP]
+          > **Kesimpulan:** [One concise sentence]
 
-        **GRADING RUBRIC:**
-        {success_criteria}
-
-        **Readiness Level:**
-        Analyze the total performance and assign a status:
-        - **SIAP TERJUN (Ready):** If the trainee handled critical constraints well and scored high (>80).
-        - **BUTUH LATIHAN (Needs Practice):** If they missed some protocols but understood the basics (60-79).
-        - **BELUM SIAP (Not Ready):** If they failed critical criteria or broke character (<60).
-
-        *Display it clearly below the table like this:*
-        > **Status Kesiapan:** [SIAP TERJUN / BUTUH LATIHAN / BELUM SIAP]
-        > **Kesimpulan:** [One sentence explaining why]
-
-        **OUTPUT FORMAT:**
-        **Part 1: The Review**
-           - Start with a professional closing remark.
-           - Present the Grading Table in Markdown.
-           - State the Readiness Level clearly.
-           - Offer a final encouraging remark to the trainee.
-
-        - You MUST output the separator string: "|||JSON_DATA|||"
-        - Immediately following the separator, output the raw JSON object for the database.
-        **JSON SCHEMA:**
+        JSON OUTPUT SCHEMA (exact keys and types):
         {{
-            "total_score": <int>,
-            "readiness": "<string>",
-            "grades": [ {{ "criteria": "...", "score": <int>, "evidence": "...", "feedback": "..." }} ]
+          "total_score": <integer 0-100>,
+          "readiness": "<SIAP TERJUN | BUTUH LATIHAN | BELUM SIAP>",
+          "grades": [
+            {{
+              "criteria": "<string>",
+              "score": <integer 0-100>,
+              "evidence": "<string - short quote from transcript>",
+              "feedback": "<string - concise recommendation>"
+            }},
+            ...
+          ]
         }}
+
+        GUIDELINES FOR JSON:
+        - total_score must be an integer summary (0-100).
+        - readiness must be one of the three exact strings.
+        - grades must be an array (can be empty) of objects strictly following the schema above.
+        - Use plain JSON (UTF-8), do not escape Markdown, do not include trailing commas.
+        - Do not wrap the JSON in lists or additional envelopes.
+
+        EXAMPLE (for clarity ONLY — do not output this example in the actual response):
+        Human text...
+        |||JSON_DATA|||
+        {"total_score":85,"readiness":"SIAP TERJUN","grades":[{"criteria":"Immediate Security Action","score":90,"evidence":"\"Saya langsung blokir...\"","feedback":"Good immediate action."}]}
+
+        Now produce the review and the required JSON strictly following the rules above.
         """
 
     return mentor_persona

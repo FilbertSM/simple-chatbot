@@ -307,7 +307,7 @@ def new_cxo_page():
     # 3. AUTO-TRIGGER (AI Speaks First)
     # ==========================================
 
-    role_id = "CS_WARKAT" # Change the variable into the respective role
+    role_id = "CSO_Giro_Tapres" # Change the variable into the respective role
     if st.session_state.get("trigger_ai_greeting"):
         with st.chat_message("assistant"):
             # 1. Call the AI
@@ -772,7 +772,7 @@ pages = {
         # st.Page(mainpage, title="👤 Roleplay & Tutor"),
         # st.Page(mb_page, title="Magang Bakti"),
         # st.Page(cxo_page, title="👤 CXO Chatbot"),
-        st.Page(new_cxo_page, title="👤New CXO Chatbot"),
+        st.Page(new_cxo_page, title="👤 CXO Chatbot"),
         st.Page(dashboard, title="📊 PIC Dashboard"),
         # st.Page(test, title="Test"),
     ]
